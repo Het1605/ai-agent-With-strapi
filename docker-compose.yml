@@ -1,0 +1,52 @@
+services:
+
+  postgres:
+    image: postgres:15
+    container_name: strapi-db
+    restart: always
+    environment:
+      POSTGRES_DB: strapi
+      POSTGRES_USER: strapi
+      POSTGRES_PASSWORD: strapi123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+
+  strapi:
+    image: node:20
+    container_name: strapi-app
+    working_dir: /srv/app
+    ports:
+      - "1337:1337"
+    volumes:
+      - ./strapi:/srv/app
+    depends_on:
+      - postgres
+    environment:
+      DATABASE_CLIENT: postgres
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: strapi
+      DATABASE_USERNAME: strapi
+      DATABASE_PASSWORD: strapi123
+      DATABASE_SSL: "false"
+    command: sh -c "npm install && npm run develop"
+
+
+  ai-agents:
+    build: ./ai-agents
+    container_name: ai-agent-service
+    ports:
+      - "8000:8000"
+    depends_on:
+      - strapi
+    volumes:
+      - ./strapi:/strapi
+    env_file:
+      - .env
+
+
+volumes:
+  postgres_data:

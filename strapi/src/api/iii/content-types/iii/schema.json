@@ -1,0 +1,18 @@
+{
+  "kind": "collectionType",
+  "collectionName": "iiis",
+  "info": {
+    "singularName": "iii",
+    "pluralName": "iiis",
+    "displayName": "Iiis"
+  },
+  "options": {},
+  "attributes": {
+    "name": {
+      "type": "string",
+      "required": true,
+      "unique": false,
+      "default": ""
+    }
+  }
+}
