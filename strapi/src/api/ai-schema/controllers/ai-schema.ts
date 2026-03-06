@@ -1,3 +1,64 @@
+const mapFieldToStrapiAttribute = (field: any) => {
+    // 1. Determine base type (Handle Strapi v5 number granularity)
+    let type = field.type;
+    if (type === 'number') {
+        type = field.numberSize || 'integer';
+    }
+
+    // 2. Initialize base config
+    const config: any = { type };
+
+    // 3. Map Global Options (Present in most types)
+    const globalOptions = ['required', 'unique', 'default', 'private', 'configurable'];
+    globalOptions.forEach(opt => {
+        if (field[opt] !== undefined) config[opt] = field[opt];
+    });
+
+    // 4. Map Type-Specific Validations/Options
+    switch (type) {
+        case 'string':
+        case 'text':
+        case 'richtext':
+        case 'email':
+        case 'password':
+        case 'uid':
+            if (field.minLength !== undefined) config.minLength = field.minLength;
+            if (field.maxLength !== undefined) config.maxLength = field.maxLength;
+            if (field.regex !== undefined) config.regex = field.regex;
+            if (type === 'uid' && field.targetField) config.targetField = field.targetField;
+            break;
+
+        case 'integer':
+        case 'biginteger':
+        case 'decimal':
+        case 'float':
+            if (field.min !== undefined) config.min = field.min;
+            if (field.max !== undefined) config.max = field.max;
+            break;
+
+        case 'enumeration':
+            config.enum = field.enum || [];
+            break;
+
+        case 'media':
+            config.multiple = !!field.multiple;
+            config.allowedTypes = field.allowedTypes || ['images', 'files', 'videos', 'audios'];
+            break;
+
+        case 'relation':
+            config.relation = field.relation;
+            config.target = field.target;
+            if (field.targetAttribute) config.targetAttribute = field.targetAttribute;
+            break;
+
+        default:
+            // Other types (blocks, json, boolean, date) usually only use global options
+            break;
+    }
+
+    return config;
+};
+
 export default {
     async createCollection(ctx: any) {
         const { collectionName, fields } = ctx.request.body;
@@ -20,50 +81,7 @@ export default {
         const attributes: any = {};
 
         for (const field of fields) {
-            let type = field.type;
-
-            // Strapi v5 prefers granular types instead of generic 'number'
-            if (type === 'number') {
-                type = field.numberSize || 'integer';
-            }
-
-            const fieldConfig: any = {
-                type: type,
-            };
-
-            if (field.required !== undefined) fieldConfig.required = field.required;
-            if (field.unique !== undefined) fieldConfig.unique = field.unique;
-            if (field.default !== undefined) fieldConfig.default = field.default;
-
-            // Type-specific mappings
-            if (type === 'enumeration') {
-                fieldConfig.enum = field.enum || [];
-            } else if (type === 'relation') {
-                fieldConfig.relation = field.relation;
-                fieldConfig.target = field.target;
-                if (field.targetAttribute) fieldConfig.targetAttribute = field.targetAttribute;
-            } else if (type === 'uid') {
-                fieldConfig.targetField = field.targetField;
-            } else if (type === 'media') {
-                fieldConfig.multiple = field.multiple || false;
-                fieldConfig.allowedTypes = field.allowedTypes || ['images', 'files', 'videos', 'audios'];
-            } else if (type === 'blocks') {
-                // Rich text (Blocks) - The new JSON-based rich text editor
-            } else if (type === 'richtext') {
-                // Rich text (Markdown) - The classic rich text editor
-            } else if (type === 'json') {
-                // JSON - Data in JSON format
-            } else if (type === 'password') {
-                // Password - Password field with encryption
-            } else if (type === 'email') {
-                // Email - Email field with validation format
-            } else if (type === 'boolean') {
-                // Boolean - Yes or no, 1 or 0, true or false
-            } else if (type === 'date' || type === 'datetime' || type === 'time' || type === 'timestamp') {
-                // Date/Time pickers
-            }
-
-            attributes[field.name] = fieldConfig;
+            attributes[field.name] = mapFieldToStrapiAttribute(field);
         }
 
         try {

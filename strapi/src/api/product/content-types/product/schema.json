@@ -1,0 +1,27 @@
+{
+  "kind": "collectionType",
+  "collectionName": "products",
+  "info": {
+    "singularName": "product",
+    "pluralName": "products",
+    "displayName": "Products"
+  },
+  "options": {},
+  "attributes": {
+    "sku": {
+      "type": "string",
+      "required": true,
+      "unique": false,
+      "default": "",
+      "minLength": 5,
+      "regex": "^[A-Z0-9]+$"
+    },
+    "price": {
+      "type": "decimal",
+      "required": true,
+      "unique": false,
+      "default": null,
+      "min": 0
+    }
+  }
+}

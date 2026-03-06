@@ -1,0 +1,29 @@
+{
+  "kind": "collectionType",
+  "collectionName": "members",
+  "info": {
+    "singularName": "member",
+    "pluralName": "members",
+    "displayName": "Members"
+  },
+  "options": {},
+  "attributes": {
+    "username": {
+      "type": "string",
+      "required": true,
+      "unique": true,
+      "minLength": 3,
+      "maxLength": 20
+    },
+    "age": {
+      "type": "integer",
+      "min": 18,
+      "max": 120
+    },
+    "secret_code": {
+      "type": "string",
+      "private": true,
+      "regex": "^[A-Z]{3}-\\d{4}$"
+    }
+  }
+}

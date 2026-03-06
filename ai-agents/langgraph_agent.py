@@ -43,6 +43,13 @@ def generate_schema(state: AgentState):
           "required": true/false,
           "unique": true/false,
           "default": "value",
+          "private": true/false,
+          "configurable": true/false,
+          "minLength": 3,      // string/text/password/uid
+          "maxLength": 30,     // string/text/password/uid
+          "regex": "^[a-z]+$", // string/text/password/uid
+          "min": 1,            // numeric
+          "max": 100,          // numeric
           "enum": ["opt1", "opt2"], // only for enumeration
           "relation": "manyToOne | oneToMany | manyToMany", // only for relation
           "target": "api::collection.collection", // only for relation
@@ -54,7 +61,7 @@ def generate_schema(state: AgentState):
     Rules:
     - Use plural names for collectionName (e.g., "students").
     - target UIDs MUST be in the format "api::singularName.singularName" (e.g., "api::student.student").
-    - Be strict with types.
+    - Be strict with types and validations.
     """
     
     response = llm.invoke(prompt)
