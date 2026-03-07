@@ -43,7 +43,7 @@ services:
     depends_on:
       - strapi
     volumes:
-      - ./strapi:/strapi
+      - ./ai-agents:/app
     env_file:
       - .env
 

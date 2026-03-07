@@ -1,22 +1,15 @@
-import os
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import HumanMessage
-from dotenv import load_dotenv
+from langchain_core.messages import HumanMessage, SystemMessage
 from app.graph.state import AgentState
+from dotenv import load_dotenv
 
 load_dotenv()
 
-def supervisor_agent(state: AgentState) -> AgentState:
+async def supervisor_agent(state: AgentState) -> AgentState:
     """
-    SupervisorAgent: A simple agent that uses an LLM to respond to the user.
+    SupervisorAgent: Orchestrates the entry point of the multi-agent workflow.
     """
-    llm = ChatOpenAI(model="gpt-4o", temperature=0.7)
+    print("\n----- ENTERING SupervisorAgent -----")
     
-    user_message = state.get("user_input", "")
-    
-    # Call LLM
-    ai_response = llm.invoke([HumanMessage(content=user_message)])
-    
-    # Update state
-    state["response"] = ai_response.content
+    # Return state to pass to validation
     return state

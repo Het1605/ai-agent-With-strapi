@@ -8,13 +8,13 @@ app = FastAPI()
 # Enable CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for development
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],  # Allow all methods (GET, POST, OPTIONS, etc.)
-    allow_headers=["*"],  # Allow all headers
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["*"],
 )
 
-# Compile the workflow once at startup
+# Compile the workflow shell
 app_workflow = create_workflow()
 
 class ChatRequest(BaseModel):
@@ -26,18 +26,37 @@ class ChatResponse(BaseModel):
 @app.post("/chat", response_model=ChatResponse)
 async def chat_endpoint(request: ChatRequest):
     """
-    FastAPI endpoint that triggers the LangGraph SupervisorAgent.
+    FastAPI endpoint to trigger the LLM-driven AI Agent workflow.
     """
-    # Initialize the state
+    # Initialize the production state
     initial_state = {
         "user_input": request.message,
-        "response": ""
+        "intent": "",
+        "scope": "",
+        "task_queue": [],
+        "current_task": None,
+        "operation_type": "",
+        "table_name": "",
+        "schema": {},
+        "data": None,
+        "query": "",
+        "missing_fields": [],
+        "inferred_fields": {},
+        "validation_results": {},
+        "execution_result": None,
+        "response": "",
+        "analysis": "",
+        "memory": {},
+        "messages": []
     }
     
-    # Run the workflow
-    final_state = app_workflow.invoke(initial_state)
-    
-    return {"response": final_state.get("response", "No response generated.")}
+    try:
+        # Run the workflow asynchronously using ainvoke
+        final_state = await app_workflow.ainvoke(initial_state)
+        return {"response": final_state.get("response", "I encountered an error while processing your request.")}
+    except Exception as e:
+        print(f"Error executing workflow: {e}")
+        return {"response": f"System error: {str(e)}"}
 
 if __name__ == "__main__":
     import uvicorn
