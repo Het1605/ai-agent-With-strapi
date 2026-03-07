@@ -47,6 +47,14 @@ services:
     env_file:
       - .env
 
+  frontend:
+    build: ./frontend
+    container_name: ai-chat-ui
+    ports:
+      - "4200:80"
+    depends_on:
+      - ai-agents
+
 
 volumes:
   postgres_data:

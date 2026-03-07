@@ -19,4 +19,4 @@ RUN echo '{ \
   } \
 }' > /root/.mcp/strapi-mcp-server.config.json
 
-CMD ["tail", "-f", "/dev/null"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

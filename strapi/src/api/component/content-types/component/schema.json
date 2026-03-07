@@ -1,0 +1,27 @@
+{
+  "kind": "collectionType",
+  "collectionName": "components",
+  "info": {
+    "singularName": "component",
+    "pluralName": "components",
+    "displayName": "Components"
+  },
+  "options": {},
+  "attributes": {
+    "name": {
+      "type": "string",
+      "required": true,
+      "unique": true,
+      "default": "default component name",
+      "minLength": 3,
+      "maxLength": 50,
+      "regex": "^[a-zA-Z0-9 ]+$"
+    },
+    "isActive": {
+      "type": "boolean",
+      "required": true,
+      "unique": false,
+      "default": true
+    }
+  }
+}
