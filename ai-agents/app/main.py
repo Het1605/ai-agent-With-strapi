@@ -46,6 +46,8 @@ async def chat_endpoint(request: ChatRequest):
         "execution_result": None,
         "response": "",
         "analysis": "",
+        "planned_task": "",
+        "current_task_index": 0,
         "memory": {},
         "messages": []
     }

@@ -5,6 +5,7 @@ from app.agents.validation.input_validation_agent import input_validation_agent
 from app.agents.classifier.scope_classifier_agent import scope_classifier_agent
 from app.agents.conversation.conversation_agent import conversation_agent
 from app.agents.conversation.general_qa_agent import general_qa_agent
+from app.agents.planner.task_planner_agent import task_planner_agent
 from app.agents.response.response_formatter_agent import response_formatter_agent
 
 def router_validation(state: AgentState):
@@ -23,8 +24,7 @@ def router_scope(state: AgentState):
     if scope == "conversation":
         return "conversation"
     elif scope == "database":
-        # Task Planner will be here later
-        return "general_qa" 
+        return "planner"
     else:
         return "general_qa"
 
@@ -40,6 +40,7 @@ def create_workflow():
     workflow.add_node("classifier", scope_classifier_agent)
     workflow.add_node("conversation", conversation_agent)
     workflow.add_node("general_qa", general_qa_agent)
+    workflow.add_node("planner", task_planner_agent)
     workflow.add_node("formatter", response_formatter_agent)
     
     # Entry and Supervisor
@@ -62,13 +63,18 @@ def create_workflow():
         router_scope,
         {
             "conversation": "conversation",
-            "general_qa": "general_qa"
+            "general_qa": "general_qa",
+            "planner": "planner"
         }
     )
     
     # Convergence
     workflow.add_edge("conversation", "formatter")
     workflow.add_edge("general_qa", "formatter")
+    
+    workflow.add_edge("planner", "formatter")
+    
+    # Exit to END
     workflow.add_edge("formatter", END)
     
     return workflow.compile()

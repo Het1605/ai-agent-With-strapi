@@ -23,6 +23,8 @@ class AgentState(TypedDict):
     execution_result: Any
     response: str
     analysis: str
+    planned_task: str
+    current_task_index: int
     memory: Dict[str, Any]
     messages: Annotated[List[Any], operator.add]
    
