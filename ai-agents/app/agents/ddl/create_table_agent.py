@@ -15,18 +15,23 @@ async def create_table_agent(state: AgentState) -> AgentState:
     user_query = state.get("user_query", "")
     current_schema = state.get("schema_data", {})
     field_registry = state.get("field_registry", {})
+    history = state.get("conversation_history", [])
+    
+    # Format history for prompt
+    history_str = "\n".join([f"{m['role']}: {m['content']}" for m in history[-10:]])
     
     system_prompt = (
-        "You are a Database Schema Specialist. Your role is to analyze a user query and any existing schema data "
+        "You are a Database Schema Specialist. Your role is to analyze a user query and the conversation history "
         "to determine the complete structure for creating a new database table.\n\n"
         "Required Information:\n"
         "1. table_name: A clear, singular name for the table.\n"
         "2. columns: A list of column objects with 'name', 'type', and all relevant constraints.\n\n"
         f"Available Strapi Field Registry: {json.dumps(field_registry)}\n\n"
         "Instructions:\n"
+        "- Use the CONVERSATION HISTORY to resolve fields that were previously missing.\n"
         "- Extract all possible constraints from the user request (e.g., 'age between 18 and 90' -> min: 18, max: 90).\n"
         "- Detect 'required', 'unique', 'default', 'enum', etc., based on natural language clues.\n"
-        "- If the request is vague, list what is missing in 'missing_fields'.\n"
+        "- If the request is vague or still missing critical data, list what is missing in 'missing_fields'.\n"
         "- Output a JSON object with two fields:\n"
         "  1. 'schema_data': The complete schema object including all column properties.\n"
         "  2. 'missing_fields': An array of missing requirements.\n\n"
@@ -44,8 +49,9 @@ async def create_table_agent(state: AgentState) -> AgentState:
     )
     
     human_msg = (
-        f"User Query: {user_query}\n"
-        f"Current Schema State: {json.dumps(current_schema)}"
+        f"Conversation History:\n{history_str}\n\n"
+        f"Current User Message: {user_query}\n"
+        f"Existing Schema State: {json.dumps(current_schema)}"
     )
     
     response = await llm.ainvoke([

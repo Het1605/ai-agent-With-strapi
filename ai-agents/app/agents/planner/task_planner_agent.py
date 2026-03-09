@@ -13,11 +13,22 @@ async def task_planner_agent(state: AgentState) -> AgentState:
     llm = ChatOpenAI(model="gpt-4o", temperature=0)
     
     user_input = state.get("user_input", "")
+    history = state.get("conversation_history", [])
+    current_planned_task = state.get("planned_task", "")
+    
+    # Format history for prompt
+    history_str = "\n".join([f"{m['role']}: {m['content']}" for m in history[-5:]])
     
     system_prompt = (
         "You are a Database Task Planner for a College Management System. "
         "Decompose the user's request into a list of atomic executable database tasks.\n\n"
-        "Allowed Task Types:\n"
+        "CONTEXT (Previous Logic):\n"
+        f"Conversation History:\n{history_str}\n"
+        f"Previously Planned Task: {current_planned_task}\n\n"
+        "INSTRUCTIONS:\n"
+        "1. If the user is providing missing details (like column types or names) for a previously discussed task, "
+        "ensure the task queue reflects the CONTINUATION of that task.\n"
+        "2. Allowed Task Types:\n"
         "- DDL_CREATE_TABLE: Create a new collection/table.\n"
         "- DDL_MODIFY_SCHEMA: Add/update/remove fields in a table.\n"
         "- DDL_DELETE_TABLE: Delete a table.\n"
@@ -31,8 +42,7 @@ async def task_planner_agent(state: AgentState) -> AgentState:
         "- 'description': A brief explanation of what this step does.\n\n"
         "Example JSON Output:\n"
         '[\n'
-        '  {"task_type": "DDL_CREATE_TABLE", "target": "students", "description": "Create the students table"},\n'
-        '  {"task_type": "DML_INSERT", "target": "students", "description": "Add the initial student record"}\n'
+        '  {"task_type": "DDL_CREATE_TABLE", "target": "students", "description": "Create the students table"}\n'
         ']'
     )
     

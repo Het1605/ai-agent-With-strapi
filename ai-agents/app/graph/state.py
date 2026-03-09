@@ -38,6 +38,8 @@ class AgentState(TypedDict):
     interaction_request: Dict[str, Any]
     interaction_message: str
     strapi_payload: Dict[str, Any]
+    user_provided_missing_data: bool
+    interaction_complete: bool
     memory: Dict[str, Any]
     messages: Annotated[List[Any], operator.add]
    

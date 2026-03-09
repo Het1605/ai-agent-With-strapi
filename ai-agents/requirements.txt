@@ -6,3 +6,4 @@ uvicorn
 requests
 python-dotenv
 mcp
+pillow

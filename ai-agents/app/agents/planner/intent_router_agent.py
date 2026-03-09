@@ -14,8 +14,8 @@ async def intent_router_agent(state: AgentState) -> AgentState:
     print(f"Current Task Index: {current_index}")
     
     if current_index >= len(task_queue):
-        print("IntentRouterAgent: No task to route.")
-        state["intent_category"] = "COMPLETE"
+        print("IntentRouterAgent: Task queue empty, routing to formatter.")
+        state["intent_category"] = "FORMATTER" # Changed from COMPLETE to FORMATTER
         return state
 
     current_task = task_queue[current_index]

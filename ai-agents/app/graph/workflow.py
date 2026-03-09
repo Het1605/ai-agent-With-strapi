@@ -56,6 +56,14 @@ def router_ddl_completion(state: AgentState):
         return "query_builder"
     return "interaction_planner"
 
+def router_interaction_loop(state: AgentState):
+    """
+    Controls the interaction loop between InteractionPlannerAgent and CreateTableAgent.
+    """
+    if state.get("user_provided_missing_data") == True:
+        return "create_table"
+    return "formatter"
+
 def create_workflow():
     """
     Builds the production-grade LangGraph workflow with AI-driven multi-agent routing.
@@ -129,11 +137,19 @@ def create_workflow():
         }
     )
     
-    # Connect Sub-agents
-    workflow.add_edge("interaction_planner", "formatter")
+    # Interaction Loop
+    workflow.add_conditional_edges(
+        "interaction_planner",
+        router_interaction_loop,
+        {
+            "create_table": "create_table",
+            "formatter": "formatter"
+        }
+    )
+    
     workflow.add_edge("query_builder", "execution")
     workflow.add_edge("execution", "formatter")
-    
+        
     # Non-database Convergence
     workflow.add_edge("conversation", "formatter")
     workflow.add_edge("general_qa", "formatter")
