@@ -10,6 +10,10 @@ async def task_planner_agent(state: AgentState) -> AgentState:
     """
     print("\n----- ENTERING TaskPlannerAgent (Planning Queue) -----")
     
+    if state.get("interaction_phase") == True:
+        print("TaskPlannerAgent: Bypassing planning during interaction phase.")
+        return state
+        
     llm = ChatOpenAI(model="gpt-4o", temperature=0)
     
     user_input = state.get("user_input", "")

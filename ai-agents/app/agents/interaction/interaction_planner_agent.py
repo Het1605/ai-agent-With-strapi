@@ -12,41 +12,39 @@ async def interaction_planner_agent(state: AgentState) -> AgentState:
     
     llm = ChatOpenAI(model="gpt-4o", temperature=0)
     
-    user_input = state.get("user_input", "")
+    execution_error = state.get("execution_error")
+    
+    if execution_error:
+        print(f"InteractionPlannerAgent: Handling Execution Error: {execution_error}")
+        prompt = (
+            "You are a Database Assistant. The user tried to execute a database operation, but the backend returned an error:\n"
+            f"ERROR: {execution_error}\n\n"
+            "Generate a friendly, helpful conversational response asking the user how they would like to resolve this issue."
+        )
+        response = await llm.ainvoke([SystemMessage(content=prompt)])
+        state["response"] = response.content.strip()
+        state["interaction_phase"] = True
+        state["active_agent"] = "create_table"
+        state["execution_error"] = None
+        state["interaction_attempts"] = state.get("interaction_attempts", 0) + 1
+        state["user_provided_missing_data"] = False
+        return state
+
+    # Standard Schema Missing Information Flow
     missing_fields = state.get("missing_fields", [])
     schema_data = state.get("schema_data", {})
-    history = state.get("conversation_history", [])
     
-    # Check if the user just provided something that looks like it's for the schema
-    # We use a bit of reasoning here to see if the current input is a response to the missing fields
+    state["interaction_attempts"] = state.get("interaction_attempts", 0) + 1
     
-    analysis_prompt = (
-        "You are an Interaction Analyst. Determine if the user's latest message is providing "
-        f"information to fill these missing schema fields: {missing_fields}.\n\n"
-        f"Latest Message: {user_input}\n"
-        "Respond with a JSON object: {'is_providing_data': boolean, 'extracted_info': {column_definitions}}"
-    )
-    
-    response = await llm.ainvoke([SystemMessage(content=analysis_prompt)])
-    try:
-        clean_content = response.content.replace("```json", "").replace("```", "").strip()
-        analysis = json.loads(clean_content)
-        
-        if analysis.get("is_providing_data"):
-            print("InteractionPlannerAgent: User provided missing data.")
-            state["user_provided_missing_data"] = True
-            # Update schema_data with extracted info (CreateTableAgent will refine this)
-            # This is a bit of a shortcut, but it signals to the router to go back to create_table
-            return state
-        
-    except Exception as e:
-        print(f"Error analyzing interaction: {e}")
+    if state["interaction_attempts"] > 5:
+        state["response"] = "I'm having trouble understanding. Could you please provide the missing table details more clearly, or let's start over?"
+        state["interaction_phase"] = True
+        state["active_agent"] = "create_table"
+        state["user_provided_missing_data"] = False
+        return state
 
-    # If we are here, we need to ASK the user for information
-    state["user_provided_missing_data"] = False
-    
     request_prompt = (
-        "You are a Database Assistant. A user wants to create a table but is missing some information.\n"
+        "You are a Database Assistant. A user wants to construct a table but is missing some information.\n"
         f"Missing Fields: {missing_fields}\n"
         f"Current Schema: {json.dumps(schema_data)}\n\n"
         "Generate a friendly, professional question to ask the user for this missing information."
@@ -54,6 +52,10 @@ async def interaction_planner_agent(state: AgentState) -> AgentState:
     
     request_response = await llm.ainvoke([SystemMessage(content=request_prompt)])
     state["response"] = request_response.content.strip()
+    
+    state["interaction_phase"] = True
+    state["active_agent"] = "create_table"
+    state["user_provided_missing_data"] = False
     
     print(f"InteractionPlannerAgent: Asking user -> {state['response']}")
     

@@ -33,8 +33,8 @@ def add_ai_message(state: AgentState, message: str) -> AgentState:
 
 def trim_history(state: AgentState) -> AgentState:
     """
-    Ensures the conversation history does not exceed 20 messages.
+    Ensures the conversation history does not exceed 10 messages.
     """
-    if len(state["conversation_history"]) > 20:
-        state["conversation_history"] = state["conversation_history"][-20:]
+    if len(state["conversation_history"]) > 10:
+        state["conversation_history"] = state["conversation_history"][-10:]
     return state

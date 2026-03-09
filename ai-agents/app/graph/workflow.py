@@ -28,7 +28,7 @@ def router_scope(state: AgentState):
     """
     Routes based on determined scope.
     """
-    scope = state.get("scope", "general")
+    scope = state.get("scope")
     if scope == "conversation":
         return "conversation"
     elif scope == "database":

@@ -14,7 +14,7 @@ class AgentState(TypedDict):
     task_queue: List[Dict[str, Any]]
     current_task: Optional[Dict[str, Any]]
     operation_type: str
-    table_name: str
+    table_name: Optional[str]
     schema: Dict[str, Any]
     data: Any
     query: str
@@ -22,7 +22,10 @@ class AgentState(TypedDict):
     inferred_fields: Dict[str, Any]
     validation_results: Dict[str, Any]
     execution_result: Any
-    execution_error: str
+    execution_error: Optional[str]
+    interaction_phase: bool
+    active_agent: Optional[str]
+    interaction_attempts: int
     response: str
     analysis: str
     planned_task: str

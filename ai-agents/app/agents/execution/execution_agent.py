@@ -41,15 +41,20 @@ async def execution_agent(state: AgentState) -> AgentState:
         if resp.status_code == 200:
             result = resp.json()
             state["execution_result"] = result
-            state["execution_error"] = ""
+            state["execution_error"] = None
+            state["interaction_phase"] = False
             print("ExecutionAgent: Successfully created collection.")
         else:
             error_data = resp.text
             state["execution_error"] = f"Strapi Error ({resp.status_code}): {error_data}"
+            state["interaction_phase"] = True
+            state["active_agent"] = "interaction_planner"
             print(f"ExecutionAgent: Failed with status {resp.status_code}")
             
     except Exception as e:
         print(f"ExecutionAgent: Runtime Error: {e}")
         state["execution_error"] = f"Network or Runtime Error: {str(e)}"
+        state["interaction_phase"] = True
+        state["active_agent"] = "interaction_planner"
     
     return state

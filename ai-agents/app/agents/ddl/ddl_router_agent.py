@@ -7,6 +7,10 @@ async def ddl_router_agent(state: AgentState) -> AgentState:
     DDLRouterAgent: AI agent that determines the exact DDL operation using LLM reasoning.
     """
     print("\n----- ENTERING DDLRouterAgent -----")
+    if state.get("interaction_phase") == True:
+        print("DDLRouterAgent: Bypassing during interaction phase.")
+        return state
+        
     
     task_queue = state.get("task_queue", [])
     current_index = state.get("current_task_index", 0)

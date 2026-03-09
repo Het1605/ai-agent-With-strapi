@@ -11,6 +11,11 @@ async def intent_router_agent(state: AgentState) -> AgentState:
     current_index = state.get("current_task_index", 0)
     
     print("\n----- ENTERING IntentRouterAgent -----")
+    if state.get("interaction_phase") == True:
+        print("IntentRouterAgent: Bypassing during interaction phase.")
+        state["intent_category"] = "DDL" # Pass through to DDL Flow
+        return state
+        
     print(f"Current Task Index: {current_index}")
     
     if current_index >= len(task_queue):
