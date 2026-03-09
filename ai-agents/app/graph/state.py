@@ -22,6 +22,7 @@ class AgentState(TypedDict):
     inferred_fields: Dict[str, Any]
     validation_results: Dict[str, Any]
     execution_result: Any
+    execution_error: str
     response: str
     analysis: str
     planned_task: str
@@ -31,6 +32,12 @@ class AgentState(TypedDict):
     dml_operation: str
     conversation_history: List[Dict[str, str]]
     field_registry: Dict[str, Any]
+    schema_data: Dict[str, Any]
+    schema_ready: bool
+    debug_info: str
+    interaction_request: Dict[str, Any]
+    interaction_message: str
+    strapi_payload: Dict[str, Any]
     memory: Dict[str, Any]
     messages: Annotated[List[Any], operator.add]
    

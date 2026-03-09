@@ -8,20 +8,11 @@
   },
   "options": {},
   "attributes": {
-    "sku": {
-      "type": "string",
-      "required": true,
-      "unique": false,
-      "default": "",
-      "minLength": 5,
-      "regex": "^[A-Z0-9]+$"
+    "name": {
+      "type": "string"
     },
     "price": {
-      "type": "decimal",
-      "required": true,
-      "unique": false,
-      "default": null,
-      "min": 0
+      "type": "decimal"
     }
   }
 }

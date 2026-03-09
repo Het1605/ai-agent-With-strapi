@@ -54,6 +54,13 @@ async def chat_endpoint(request: ChatRequest):
         "dml_operation": "",
         "conversation_history": [],
         "field_registry": {},
+        "schema_data": {},
+        "schema_ready": False,
+        "debug_info": "",
+        "interaction_request": {},
+        "interaction_message": "",
+        "strapi_payload": {},
+        "execution_error": "",
         "memory": {},
         "messages": []
     }

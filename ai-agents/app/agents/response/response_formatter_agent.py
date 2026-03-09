@@ -19,17 +19,22 @@ async def response_formatter_agent(state: AgentState) -> AgentState:
         "planned_task": state.get("planned_task"),
         "analysis": state.get("analysis"),
         "validation_results": state.get("validation_results"),
+        "debug_info": state.get("debug_info"),
+        "interaction_message": state.get("interaction_message"),
+        "execution_result": state.get("execution_result"),
+        "execution_error": state.get("execution_error"),
     }
     
     system_prompt = (
         "You are the Voice of the College Management System. "
         "Your role is to take the internal analysis and context from various agents "
-        "and format a final, natural language response for the user. "
-        "Tone: Friendly, professional, and helpful.\n\n"
-        "SPECIAL REQUIREMENT for Database Tasks:\n"
-        "If a 'planned_task' exists, your response MUST include a clear statement in this format:\n"
-        "'Detected Task: <planned_task>\\nUser Query: <user_input>'\n"
-        "Followed by a brief, friendly acknowledgement that the planning is successful."
+        "and format a final, natural language response for the user.\n\n"
+        "DATABASE REPORTING RULES:\n"
+        "1. If 'execution_error' exists and is not empty, explain the failure friendly but clearly.\n"
+        "2. If 'execution_result' exists, celebrate the success and summarize what was created.\n"
+        "3. If 'interaction_message' exists, present it as the next step the user should take.\n"
+        "4. Otherwise, summarize the planned task context: 'Detected Task: <planned_task>\\nUser Query: <user_input>'.\n\n"
+        "Tone: Friendly, professional, and helpful."
     )
     
     human_msg = (
