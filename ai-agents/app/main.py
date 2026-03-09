@@ -31,6 +31,7 @@ async def chat_endpoint(request: ChatRequest):
     # Initialize the production state
     initial_state = {
         "user_input": request.message,
+        "user_query": request.message,
         "intent": "",
         "scope": "",
         "task_queue": [],
@@ -48,6 +49,11 @@ async def chat_endpoint(request: ChatRequest):
         "analysis": "",
         "planned_task": "",
         "current_task_index": 0,
+        "intent_category": "",
+        "ddl_operation": "",
+        "dml_operation": "",
+        "conversation_history": [],
+        "field_registry": {},
         "memory": {},
         "messages": []
     }

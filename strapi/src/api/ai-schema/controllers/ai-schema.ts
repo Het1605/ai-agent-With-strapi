@@ -118,4 +118,50 @@ export default {
             ctx.internalServerError(`Failed to create collection: ${error.message}`);
         }
     },
+
+    async fieldRegistry(ctx: any) {
+        try {
+            const fieldMap: Record<string, Set<string>> = {};
+
+            // @ts-ignore
+            const contentTypes = strapi.contentTypes;
+
+            for (const uid in contentTypes) {
+                const contentType = contentTypes[uid];
+                const attributes = contentType.attributes;
+
+                for (const attrName in attributes) {
+                    const attr = attributes[attrName];
+                    const type = attr.type;
+
+                    if (!type) continue;
+
+                    if (!fieldMap[type]) {
+                        fieldMap[type] = new Set<string>();
+                    }
+
+                    // Dynamically collect all keys that are not 'type'
+                    Object.keys(attr).forEach(key => {
+                        if (key !== 'type') {
+                            fieldMap[type].add(key);
+                        }
+                    });
+                }
+            }
+
+            // Convert Sets to Arrays for JSON response
+            const responseFields: Record<string, string[]> = {};
+            for (const type in fieldMap) {
+                responseFields[type] = Array.from(fieldMap[type]);
+            }
+
+            return ctx.send({
+                fields: responseFields
+            });
+        } catch (error: any) {
+            // @ts-ignore
+            strapi.log.error('Field Registry Error:', error);
+            return ctx.internalServerError(`Failed to retrieve field registry: ${error.message}`);
+        }
+    },
 };

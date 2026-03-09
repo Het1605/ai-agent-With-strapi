@@ -8,6 +8,7 @@ class AgentState(TypedDict):
     """
     # -- Input & Classification --
     user_input: str
+    user_query: str
     intent: str
     scope: str
     task_queue: List[Dict[str, Any]]
@@ -25,6 +26,11 @@ class AgentState(TypedDict):
     analysis: str
     planned_task: str
     current_task_index: int
+    intent_category: str
+    ddl_operation: str
+    dml_operation: str
+    conversation_history: List[Dict[str, str]]
+    field_registry: Dict[str, Any]
     memory: Dict[str, Any]
     messages: Annotated[List[Any], operator.add]
    

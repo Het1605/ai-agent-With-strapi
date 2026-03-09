@@ -10,5 +10,15 @@ export default {
                 middlewares: [],
             },
         },
+        {
+            method: "GET",
+            path: "/ai-schema/field-registry",
+            handler: "ai-schema.fieldRegistry",
+            config: {
+                auth: false,
+                policies: [],
+                middlewares: [],
+            },
+        },
     ],
 };
