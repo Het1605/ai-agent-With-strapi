@@ -120,14 +120,19 @@ export default {
     },
 
     async modifySchema(ctx: any) {
-        const { collectionName, fields } = ctx.request.body;
+        const { operation, collection } = ctx.request.body;
+        const data = ctx.request.body.data || {};
 
-        if (!collectionName || !Array.isArray(fields) || fields.length === 0) {
-            return ctx.badRequest('collectionName and a non-empty fields array are required');
+        // ── Validate common required fields ───────────────────────────
+        if (!operation) {
+            return ctx.badRequest('"operation" is required. Supported: add_column, update_collection, update_field, delete_field');
+        }
+        if (!collection) {
+            return ctx.badRequest('"collection" is required');
         }
 
-        // Resolve the UID — same rule as createCollection
-        const singularName = collectionName.toLowerCase().replace(/s$/, '');
+        // ── Resolve UID (same rule as createCollection) ───────────────
+        const singularName = collection.toLowerCase().replace(/s$/, '');
         const uid = `api::${singularName}.${singularName}`;
 
         // @ts-ignore
@@ -136,62 +141,172 @@ export default {
             return ctx.badRequest(`Collection "${uid}" does not exist. Create it first.`);
         }
 
-        // Gather existing attribute names to guard against overwrites
-        const existingAttributes: any = existingContentType.attributes || {};
-        const newAttributes: any = {};
-        const skipped: string[] = [];
-        const invalid: string[] = [];
+        // @ts-ignore
+        const contentTypeService = strapi.plugin('content-type-builder').service('content-types');
 
-        for (const field of fields) {
-            if (!field.name || !field.type) {
-                invalid.push(field.name || '(unnamed)');
-                continue;
-            }
-            if (existingAttributes[field.name]) {
-                skipped.push(field.name);
-                continue;
-            }
-            newAttributes[field.name] = mapFieldToStrapiAttribute(field);
-        }
-
-        if (invalid.length > 0) {
-            return ctx.badRequest(`Fields missing name or type: ${invalid.join(', ')}`);
-        }
-
-        if (Object.keys(newAttributes).length === 0) {
-            return ctx.badRequest(
-                skipped.length > 0
-                    ? `All provided fields already exist: ${skipped.join(', ')}`
-                    : 'No valid new fields to add'
-            );
-        }
-
-        try {
-            // @ts-ignore
-            const contentTypeService = strapi.plugin('content-type-builder').service('content-types');
-
-            // Merge new attributes on top of existing ones
-            const mergedAttributes = { ...existingAttributes, ...newAttributes };
-
+        // Helper to call editContentType and send a uniform success response
+        const applyEdit = async (updatedAttributes: any, extraInfo: any = {}) => {
+            const info = existingContentType.info || {};
             await contentTypeService.editContentType(uid, {
                 contentType: {
-                    displayName: existingContentType.info?.displayName || singularName,
-                    singularName: existingContentType.info?.singularName || singularName,
-                    pluralName: existingContentType.info?.pluralName || `${singularName}s`,
+                    displayName: info.displayName || singularName,
+                    singularName: info.singularName || singularName,
+                    pluralName: info.pluralName || `${singularName}s`,
                     kind: 'collectionType',
-                    attributes: mergedAttributes,
+                    attributes: updatedAttributes,
                 },
                 components: [],
             });
+            ctx.send({ message: 'Schema updated successfully', ...extraInfo });
+        };
 
-            const response: any = {
-                message: 'Schema updated successfully',
-                collection: uid,
-                added: Object.keys(newAttributes),
-            };
-            if (skipped.length > 0) response.skipped = skipped;
+        try {
+            const existingAttributes: any = { ...(existingContentType.attributes || {}) };
 
-            ctx.send(response);
+            switch (operation) {
+
+                // ── 1. ADD COLUMN ─────────────────────────────────────
+                case 'add_column': {
+                    const fields: any[] = data.fields || [];
+                    if (!Array.isArray(fields) || fields.length === 0) {
+                        return ctx.badRequest('"data.fields" must be a non-empty array for add_column');
+                    }
+
+                    const added: string[] = [];
+                    const skipped: string[] = [];
+                    const invalid: string[] = [];
+
+                    for (const field of fields) {
+                        if (!field.name || !field.type) {
+                            invalid.push(field.name || '(unnamed)');
+                            continue;
+                        }
+                        if (existingAttributes[field.name]) {
+                            skipped.push(field.name);
+                            continue;
+                        }
+                        existingAttributes[field.name] = mapFieldToStrapiAttribute(field);
+                        added.push(field.name);
+                    }
+
+                    if (invalid.length > 0) {
+                        return ctx.badRequest(`Fields missing name or type: ${invalid.join(', ')}`);
+                    }
+                    if (added.length === 0) {
+                        return ctx.badRequest(
+                            skipped.length > 0
+                                ? `All provided fields already exist: ${skipped.join(', ')}`
+                                : 'No valid new fields to add'
+                        );
+                    }
+
+                    const extra: any = { collection: uid, added };
+                    if (skipped.length > 0) extra.skipped = skipped;
+                    await applyEdit(existingAttributes, extra);
+                    break;
+                }
+
+                // ── 2. UPDATE COLLECTION ──────────────────────────────
+                // Only updates display-level info (displayName, description).
+                // Does NOT rename the UID, folder, or singularName.
+                case 'update_collection': {
+                    // ── Branch: DELETE entire collection ─────────────
+                    if (data.delete === true) {
+                        await contentTypeService.deleteContentType(uid);
+                        ctx.send({
+                            message: 'Collection deleted successfully',
+                            collection: uid,
+                            deleted: true,
+                        });
+                        break;
+                    }
+
+                    // ── Branch: UPDATE collection settings ────────────
+                    if (!data.displayName && !data.description) {
+                        return ctx.badRequest('"data.displayName" or "data.description" is required for update_collection (or pass "delete": true to delete the collection)');
+                    }
+
+                    const info = existingContentType.info || {};
+                    // @ts-ignore
+                    await contentTypeService.editContentType(uid, {
+                        contentType: {
+                            displayName: data.displayName || info.displayName || singularName,
+                            singularName: info.singularName || singularName,
+                            pluralName: info.pluralName || `${singularName}s`,
+                            description: data.description || info.description || '',
+                            kind: 'collectionType',
+                            attributes: existingAttributes,
+                        },
+                        components: [],
+                    });
+                    ctx.send({
+                        message: 'Schema updated successfully',
+                        collection: uid,
+                        updated: Object.fromEntries(
+                            ['displayName', 'description']
+                                .filter(k => data[k] !== undefined)
+                                .map(k => [k, data[k]])
+                        ),
+                    });
+                    break;
+                }
+
+
+                // ── 3. UPDATE FIELD ───────────────────────────────────
+                case 'update_field': {
+                    const fieldName = data.field;
+                    const updates = data.updates;
+
+                    if (!fieldName) {
+                        return ctx.badRequest('"data.field" is required for update_field');
+                    }
+                    if (!updates || typeof updates !== 'object') {
+                        return ctx.badRequest('"data.updates" must be an object for update_field');
+                    }
+                    if (!existingAttributes[fieldName]) {
+                        return ctx.badRequest(`Field "${fieldName}" does not exist in collection "${uid}"`);
+                    }
+
+                    // Merge updates into the existing field config; type cannot be changed.
+                    existingAttributes[fieldName] = {
+                        ...existingAttributes[fieldName],
+                        ...updates,
+                        type: existingAttributes[fieldName].type,  // type is immutable
+                    };
+
+                    await applyEdit(existingAttributes, {
+                        collection: uid,
+                        field: fieldName,
+                        applied: updates,
+                    });
+                    break;
+                }
+
+                // ── 4. DELETE FIELD ───────────────────────────────────
+                case 'delete_field': {
+                    const fieldName = data.field;
+                    if (!fieldName) {
+                        return ctx.badRequest('"data.field" is required for delete_field');
+                    }
+                    if (!existingAttributes[fieldName]) {
+                        return ctx.badRequest(`Field "${fieldName}" does not exist in collection "${uid}"`);
+                    }
+
+                    delete existingAttributes[fieldName];
+
+                    await applyEdit(existingAttributes, {
+                        collection: uid,
+                        deleted: fieldName,
+                    });
+                    break;
+                }
+
+                default:
+                    return ctx.badRequest(
+                        `Unsupported operation "${operation}". Allowed: add_column, update_collection, update_field, delete_field`
+                    );
+            }
+
         } catch (error: any) {
             // @ts-ignore
             strapi.log.error('modifySchema error:', error);

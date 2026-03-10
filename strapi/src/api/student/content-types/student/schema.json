@@ -7,5 +7,71 @@
     "displayName": "Students"
   },
   "options": {},
-  "attributes": {}
+  "attributes": {
+    "publishedAt": {
+      "type": "datetime",
+      "configurable": false,
+      "writable": true,
+      "visible": true
+    },
+    "createdBy": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "admin::user",
+      "configurable": false,
+      "writable": false,
+      "visible": false,
+      "useJoinTable": false,
+      "private": true
+    },
+    "updatedBy": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "admin::user",
+      "configurable": false,
+      "writable": false,
+      "visible": false,
+      "useJoinTable": false,
+      "private": true
+    },
+    "locale": {
+      "writable": true,
+      "private": true,
+      "configurable": false,
+      "visible": false,
+      "type": "string"
+    },
+    "localizations": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::student.student",
+      "writable": false,
+      "private": true,
+      "configurable": false,
+      "visible": false,
+      "unstable_virtual": true,
+      "joinColumn": {
+        "name": "document_id",
+        "referencedColumn": "document_id",
+        "referencedTable": "students"
+      }
+    },
+    "createdAt": {
+      "type": "datetime"
+    },
+    "updatedAt": {
+      "type": "datetime"
+    },
+    "name": {
+      "type": "string"
+    },
+    "email": {
+      "type": "email"
+    },
+    "roll_no": {
+      "type": "string",
+      "required": true,
+      "unique": true
+    }
+  }
 }
