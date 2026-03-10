@@ -1,6 +1,7 @@
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from app.graph.state import AgentState
+from app.agents.ddl.schema_utils import maybe_reset_schema
 import json
 
 
@@ -26,17 +27,24 @@ async def update_field_agent(state: AgentState) -> AgentState:
     print(f"[UpdateFieldAgent] user_input : {user_input}")
 
     system_prompt = (
-        "You are a Database Field Configuration Specialist.\n\n"
-        "Instructions:\n"
+        "You are a strict database schema modification agent.\n\n"
+        "Your task is to extract field updates from the user's request.\n\n"
+        "CRITICAL RULES:\n"
+        "1. NEVER add settings the user did NOT explicitly mention.\n"
+        "2. NEVER infer or assume constraints such as unique, required, min, max, "
+        "private, searchable, configurable unless the user explicitly requested them.\n"
+        "3. If the user asks to set a default value → return ONLY {'default': <value>}.\n"
+        "4. If the user asks to make a field required → return ONLY {'required': true}.\n"
+        "5. If the user asks to make a field unique → return ONLY {'unique': true}.\n"
+        "6. For rename requests → return ONLY {'new_name': '<new_name>'}.\n"
+        "7. Do NOT combine multiple settings automatically.\n\n"
+        "Example — correct:\n"
+        "  User: set default value of rating to 5.0\n"
+        "  Output updates: {\"default\": 5.0}\n\n"
+        "Example — WRONG (never do this):\n"
+        "  Output updates: {\"default\": 5.0, \"unique\": true}\n\n"
         "- Extract the TARGET collection name (entity noun: 'product', 'customer', etc.).\n"
         "- Extract the TARGET field name to be updated.\n"
-        "- Extract the updates to apply. Possible update keys:\n"
-        "    required: true/false\n"
-        "    unique: true/false\n"
-        "    private: true/false\n"
-        "    default: <value>\n"
-        "    new_name: <string>  (for rename operations — you must include this key when user says rename)\n"
-        "- NEVER make up values. Only extract what user explicitly states.\n"
         "- If table_name, field_name, or updates cannot be determined, set to null/empty.\n\n"
         "Output ONLY valid JSON:\n"
         '{"extracted_data": {"table_name": <str|null>, "field_name": <str|null>, "updates": {}}}'
@@ -51,12 +59,27 @@ async def update_field_agent(state: AgentState) -> AgentState:
         clean     = response.content.replace("```json", "").replace("```", "").strip()
         extracted = json.loads(clean).get("extracted_data", {})
 
-        if extracted.get("table_name"):
-            current_schema["table_name"] = extracted["table_name"]
+        new_table_name = extracted.get("table_name")
+        if new_table_name:
+            maybe_reset_schema(state, new_table_name)
+            current_schema["table_name"] = new_table_name
         if extracted.get("field_name"):
             current_schema["field_name"] = extracted["field_name"]
         if extracted.get("updates"):
-            current_schema["updates"] = {**current_schema["updates"], **extracted["updates"]}
+            # Allowlist filter — only store keys the LLM explicitly returned.
+            # This prevents hallucinated constraints from sneaking through.
+            _ALLOWED_UPDATE_KEYS = {
+                "default", "required", "unique", "min", "max",
+                "enum", "new_name", "private", "searchable"
+            }
+            safe_updates = {
+                k: v for k, v in extracted["updates"].items()
+                if k in _ALLOWED_UPDATE_KEYS
+            }
+            current_schema["updates"] = {**current_schema["updates"], **safe_updates}
+            if len(safe_updates) != len(extracted["updates"]):
+                dropped = set(extracted["updates"]) - set(safe_updates)
+                print(f"[UpdateFieldAgent] Dropped non-allowed keys: {dropped}")
 
         state["schema_data"] = current_schema
 

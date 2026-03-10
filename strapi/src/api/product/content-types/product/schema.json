@@ -1,10 +1,10 @@
 {
   "kind": "collectionType",
-  "collectionName": "employees",
+  "collectionName": "products",
   "info": {
-    "singularName": "employee",
-    "pluralName": "employees",
-    "displayName": "Employees"
+    "singularName": "product",
+    "pluralName": "products",
+    "displayName": "Products"
   },
   "options": {},
   "attributes": {
@@ -44,7 +44,7 @@
     "localizations": {
       "type": "relation",
       "relation": "oneToMany",
-      "target": "api::employee.employee",
+      "target": "api::product.product",
       "writable": false,
       "private": true,
       "configurable": false,
@@ -53,7 +53,7 @@
       "joinColumn": {
         "name": "document_id",
         "referencedColumn": "document_id",
-        "referencedTable": "employees"
+        "referencedTable": "products"
       }
     },
     "createdAt": {
@@ -62,44 +62,23 @@
     "updatedAt": {
       "type": "datetime"
     },
-    "name": {
-      "type": "string",
-      "required": true
+    "price": {
+      "type": "decimal",
+      "default": 0,
+      "new_name": "product_price"
+    },
+    "stock": {
+      "type": "integer",
+      "default": 0
     },
     "description": {
       "type": "text"
     },
-    "salary": {
+    "rating": {
       "type": "decimal",
+      "unique": true,
       "required": false,
-      "unique": true
-    },
-    "jpining_date": {
-      "type": "datetime"
-    },
-    "email": {
-      "type": "email",
-      "required": true,
-      "unique": true
-    },
-    "password": {
-      "type": "password",
-      "minLength": 8
-    },
-    "price": {
-      "type": "decimal"
-    },
-    "quantity": {
-      "type": "integer"
-    },
-    "discount": {
-      "type": "decimal"
-    },
-    "joining_date": {
-      "type": "datetime"
-    },
-    "is_active": {
-      "type": "boolean"
+      "default": 5
     }
   }
 }

@@ -1,6 +1,7 @@
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from app.graph.state import AgentState
+from app.agents.ddl.schema_utils import maybe_reset_schema
 import json
 import re
 
@@ -63,8 +64,15 @@ async def add_column_agent(state: AgentState) -> AgentState:
         clean     = response.content.replace("```json", "").replace("```", "").strip()
         extracted = json.loads(clean).get("extracted_data", {})
 
-        if extracted.get("table_name"):
-            current_schema["table_name"] = extracted["table_name"]
+        new_table_name = extracted.get("table_name")
+        if new_table_name:
+            maybe_reset_schema(state, new_table_name)
+            # Re-read after potential reset so we don't carry stale columns
+            raw_schema = state.get("schema_data") or {}
+            current_schema = {
+                "table_name": new_table_name,
+                "columns":    list(raw_schema.get("columns") or [])
+            }
 
         existing_cols = {c["name"]: c for c in current_schema["columns"]}
         for col in extracted.get("columns", []):

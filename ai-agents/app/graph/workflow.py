@@ -95,7 +95,7 @@ def router_state_decision(state: AgentState):
     allowed = {
         "create_table", "modify_schema",
         "add_column", "update_collection", "update_field", "delete_field",
-        "intent_router", "validation"
+        "validation"
     }
     if decision not in allowed:
         print(f"[router_state_decision] Unexpected decision '{decision}' — defaulting to 'validation'.")
@@ -136,8 +136,12 @@ def create_workflow():
     workflow.set_entry_point("supervisor")
     workflow.add_edge("supervisor", "memory")
 
-    # MemoryManager always runs, then StateRouterAgent (LLM-based) decides
-    # which path the workflow should take for this turn.
+    # MemoryManager → StateRouterAgent (LLM-based decision)
+    # StateRouterAgent only routes to:
+    #   • an active DDL sub-agent   (when interaction_phase == True)
+    #   • validation                (fresh request — let full pipeline run)
+    # It NEVER routes to intent_router (IntentRouterAgent must only run
+    # after TaskPlannerAgent has built the task queue).
     workflow.add_edge("memory", "state_router")
     workflow.add_conditional_edges(
         "state_router",
@@ -149,10 +153,10 @@ def create_workflow():
             "update_collection":  "update_collection",
             "update_field":       "update_field",
             "delete_field":       "delete_field",
-            "intent_router":      "intent_router",
             "validation":         "validation",
         }
     )
+
     
     # Scoping Phase
     workflow.add_conditional_edges(

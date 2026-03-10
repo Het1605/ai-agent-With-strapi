@@ -66,7 +66,9 @@
       "type": "string"
     },
     "email": {
-      "type": "email"
+      "type": "email",
+      "default": 0,
+      "new_name": "email_address"
     },
     "mobile_no": {
       "type": "string"

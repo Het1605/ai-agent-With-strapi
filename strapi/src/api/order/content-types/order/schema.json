@@ -1,10 +1,10 @@
 {
   "kind": "collectionType",
-  "collectionName": "employees",
+  "collectionName": "orders",
   "info": {
-    "singularName": "employee",
-    "pluralName": "employees",
-    "displayName": "Employees"
+    "singularName": "order",
+    "pluralName": "orders",
+    "displayName": "Orders"
   },
   "options": {},
   "attributes": {
@@ -44,7 +44,7 @@
     "localizations": {
       "type": "relation",
       "relation": "oneToMany",
-      "target": "api::employee.employee",
+      "target": "api::order.order",
       "writable": false,
       "private": true,
       "configurable": false,
@@ -53,7 +53,7 @@
       "joinColumn": {
         "name": "document_id",
         "referencedColumn": "document_id",
-        "referencedTable": "employees"
+        "referencedTable": "orders"
       }
     },
     "createdAt": {
@@ -62,30 +62,6 @@
     "updatedAt": {
       "type": "datetime"
     },
-    "name": {
-      "type": "string",
-      "required": true
-    },
-    "description": {
-      "type": "text"
-    },
-    "salary": {
-      "type": "decimal",
-      "required": false,
-      "unique": true
-    },
-    "jpining_date": {
-      "type": "datetime"
-    },
-    "email": {
-      "type": "email",
-      "required": true,
-      "unique": true
-    },
-    "password": {
-      "type": "password",
-      "minLength": 8
-    },
     "price": {
       "type": "decimal"
     },
@@ -93,13 +69,17 @@
       "type": "integer"
     },
     "discount": {
-      "type": "decimal"
+      "type": "decimal",
+      "unique": true,
+      "required": false,
+      "default": 14
     },
     "joining_date": {
       "type": "datetime"
     },
-    "is_active": {
-      "type": "boolean"
+    "email": {
+      "type": "email",
+      "unique": true
     }
   }
 }

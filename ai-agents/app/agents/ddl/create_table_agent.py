@@ -1,6 +1,7 @@
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from app.graph.state import AgentState
+from app.agents.ddl.schema_utils import maybe_reset_schema
 import json
 import re
 
@@ -92,10 +93,17 @@ async def create_table_agent(state: AgentState) -> AgentState:
         # 3. Merge new fragment into schema_data
         # 4. Preserve previously collected fields
         
-        # Merge table name
-        if extracted.get("table_name"):
-            current_schema["table_name"] = extracted.get("table_name")
-            
+        # Merge table name — detect table change and reset before merging
+        new_table_name = extracted.get("table_name")
+        if new_table_name:
+            maybe_reset_schema(state, new_table_name)
+            # Re-read after potential reset
+            raw_schema = state.get("schema_data") or {}
+            current_schema = {
+                "table_name": new_table_name,
+                "columns":    list(raw_schema.get("columns") or [])
+            }
+
         # Merge columns
         existing_cols = {col["name"]: col for col in current_schema.get("columns", [])}
         for new_col in extracted.get("columns", []):
