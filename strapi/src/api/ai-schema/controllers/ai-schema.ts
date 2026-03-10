@@ -63,8 +63,8 @@ export default {
     async createCollection(ctx: any) {
         const { collectionName, fields } = ctx.request.body;
 
-        if (!collectionName || !fields) {
-            return ctx.badRequest('collectionName and fields are required');
+        if (!collectionName) {
+            return ctx.badRequest('collectionName is required');
         }
 
         const singularName = collectionName.toLowerCase().replace(/s$/, ''); // Basic singularization
@@ -116,6 +116,86 @@ export default {
             }
 
             ctx.internalServerError(`Failed to create collection: ${error.message}`);
+        }
+    },
+
+    async modifySchema(ctx: any) {
+        const { collectionName, fields } = ctx.request.body;
+
+        if (!collectionName || !Array.isArray(fields) || fields.length === 0) {
+            return ctx.badRequest('collectionName and a non-empty fields array are required');
+        }
+
+        // Resolve the UID — same rule as createCollection
+        const singularName = collectionName.toLowerCase().replace(/s$/, '');
+        const uid = `api::${singularName}.${singularName}`;
+
+        // @ts-ignore
+        const existingContentType = strapi.contentTypes[uid];
+        if (!existingContentType) {
+            return ctx.badRequest(`Collection "${uid}" does not exist. Create it first.`);
+        }
+
+        // Gather existing attribute names to guard against overwrites
+        const existingAttributes: any = existingContentType.attributes || {};
+        const newAttributes: any = {};
+        const skipped: string[] = [];
+        const invalid: string[] = [];
+
+        for (const field of fields) {
+            if (!field.name || !field.type) {
+                invalid.push(field.name || '(unnamed)');
+                continue;
+            }
+            if (existingAttributes[field.name]) {
+                skipped.push(field.name);
+                continue;
+            }
+            newAttributes[field.name] = mapFieldToStrapiAttribute(field);
+        }
+
+        if (invalid.length > 0) {
+            return ctx.badRequest(`Fields missing name or type: ${invalid.join(', ')}`);
+        }
+
+        if (Object.keys(newAttributes).length === 0) {
+            return ctx.badRequest(
+                skipped.length > 0
+                    ? `All provided fields already exist: ${skipped.join(', ')}`
+                    : 'No valid new fields to add'
+            );
+        }
+
+        try {
+            // @ts-ignore
+            const contentTypeService = strapi.plugin('content-type-builder').service('content-types');
+
+            // Merge new attributes on top of existing ones
+            const mergedAttributes = { ...existingAttributes, ...newAttributes };
+
+            await contentTypeService.editContentType(uid, {
+                contentType: {
+                    displayName: existingContentType.info?.displayName || singularName,
+                    singularName: existingContentType.info?.singularName || singularName,
+                    pluralName: existingContentType.info?.pluralName || `${singularName}s`,
+                    kind: 'collectionType',
+                    attributes: mergedAttributes,
+                },
+                components: [],
+            });
+
+            const response: any = {
+                message: 'Schema updated successfully',
+                collection: uid,
+                added: Object.keys(newAttributes),
+            };
+            if (skipped.length > 0) response.skipped = skipped;
+
+            ctx.send(response);
+        } catch (error: any) {
+            // @ts-ignore
+            strapi.log.error('modifySchema error:', error);
+            ctx.internalServerError(`Failed to modify schema: ${error.message}`);
         }
     },
 

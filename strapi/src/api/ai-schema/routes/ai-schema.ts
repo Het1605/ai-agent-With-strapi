@@ -11,6 +11,16 @@ export default {
             },
         },
         {
+            method: "POST",
+            path: "/ai-schema/modify-schema",
+            handler: "ai-schema.modifySchema",
+            config: {
+                auth: false,
+                policies: [],
+                middlewares: [],
+            },
+        },
+        {
             method: "GET",
             path: "/ai-schema/field-registry",
             handler: "ai-schema.fieldRegistry",
