@@ -2,6 +2,37 @@ from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from app.graph.state import AgentState
 import json
+import re
+
+
+def _resolve_relation_uid(raw_target: str) -> str:
+    """
+    Normalise a raw relation target string to the Strapi content-type UID format:
+        api::<singularName>.<singularName>
+
+    Examples
+    --------
+    'Order'         → 'api::order.order'
+    'orders'        → 'api::order.order'
+    'orders table'  → 'api::order.order'
+    'order collection' → 'api::order.order'
+    """
+    # Strip common noise words
+    noise = r'\b(table|collection|model|entity|db|database|the|a|an)\b'
+    cleaned = re.sub(noise, '', raw_target, flags=re.IGNORECASE).strip()
+    # Lowercase and collapse whitespace / underscores / hyphens to single token
+    singular = re.sub(r'[\s\-_]+', '_', cleaned.lower()).strip('_')
+    # Remove trailing 's' to convert simple plurals to singular
+    # e.g. 'orders' → 'order', 'customers' → 'customer'
+    # Avoid stripping 's' from words that are naturally singular (e.g. 'address', 'class')
+    if singular.endswith('sses') or singular.endswith('ches') or singular.endswith('xes'):
+        pass  # already a natural singular, leave alone
+    elif singular.endswith('ies'):
+        singular = singular[:-3] + 'y'   # categories → category
+    elif singular.endswith('s') and not singular.endswith('ss'):
+        singular = singular[:-1]
+    uid = f"api::{singular}.{singular}"
+    return uid
 
 async def create_table_agent(state: AgentState) -> AgentState:
     """
@@ -13,21 +44,32 @@ async def create_table_agent(state: AgentState) -> AgentState:
     llm = ChatOpenAI(model="gpt-4o", temperature=0)
     
     user_query = state.get("user_query", "")
-    current_schema = state.get("schema_data", {"table_name": None, "columns": []})
+    # Safely read existing schema without overwriting it
+    raw_schema = state.get("schema_data") or {}
+    print("raw_schema",raw_schema)
+
+    current_schema = {
+        "table_name": raw_schema.get("table_name") or None,
+        "columns": list(raw_schema.get("columns") or [])
+    }
+
+    print("current_schema",current_schema)
+
     field_registry = state.get("field_registry", {})
+
+    print("field_registry:", field_registry)
     
     system_prompt = (
-        "You are a Database Schema Specialist. Your role is to analyze a new user message and extract ONLY the newly provided schema constraints, fields, or table name.\n\n"
-        "Required Information for a full schema:\n"
-        "1. table_name: A clear, singular name for the table.\n"
-        "2. columns: A list of column objects with 'name', 'type', and relevant constraints.\n\n"
+        "You are a Database Schema Specialist. Your role is to extract schema information from the user's message.\n\n"
         f"Available Strapi Field Registry: {json.dumps(field_registry)}\n\n"
         "Instructions:\n"
-        "- Extract new constraints, column names, or table names from the Current User Message.\n"
-        "- Do NOT worry about preserving previous columns. Just output what is NEW in this specific message.\n"
-        "- If the user provides a table name, output it.\n"
-        "- Detect 'required', 'unique', 'default', 'enum', etc., based on natural language clues.\n"
-        "- Output a JSON object with 'extracted_data' (acting as a partial schema_data object with a 'table_name' if found, and a 'columns' list of new or modified columns).\n"
+        "- Extract the ACTUAL ENTITY (table) name from the user message. This is a domain noun — e.g. 'order', 'product', 'employee', 'invoice'.\n"
+        "- CRITICAL: Do NOT treat generic command words as table names. The following words are NEVER a table name: 'collection', 'table', 'new', 'a', 'an', 'the', 'create', 'make', 'add', 'database', 'db'.\n"
+        "- If no clear ENTITY name is present, set table_name to null.\n"
+        "- Extract column definitions only if the user explicitly lists fields or attributes.\n"
+        "- Intelligently INFER column types from names (e.g. name→string, age→integer, price→decimal/float, email→email, date→date, is_active→boolean). Use the field registry for Strapi-compatible types.\n"
+        "- NEVER add constraints (required, unique, min, max, default) unless the user EXPLICITLY stated them.\n"
+        "- Output ONLY a valid JSON object: {\"extracted_data\": {\"table_name\": <string or null>, \"columns\": [...]}}\n"
         "Output ONLY valid JSON."
     )
     
@@ -66,21 +108,45 @@ async def create_table_agent(state: AgentState) -> AgentState:
                 existing_cols[name] = new_col
                 
         current_schema["columns"] = list(existing_cols.values())
+
+        # ── Relation target normalization ────────────────────────────
+        # Strapi requires UID format: api::<singular>.<singular>
+        # Replace any plain target name on relation-type columns.
+        for col in current_schema["columns"]:
+            if col.get("type") == "relation" and col.get("target"):
+                raw_target = col["target"]
+                uid = _resolve_relation_uid(raw_target)
+                col["target"] = uid
+                print(f"[RelationResolver]")
+                print(f"  raw_target        : {raw_target}")
+                print(f"  normalized_target : {uid.split('::')[1].split('.')[0]}")
+                print(f"  uid               : {uid}")
+        # ─────────────────────────────────────────────────────────────
+
         state["schema_data"] = current_schema
         
-        # Compute missing fields dynamically
+        # Compute missing fields dynamically.
+        # RULE: table_name is the ONLY mandatory field.
+        # Columns are optional — Strapi allows adding fields later.
+        # Only flag a column if the user provided it but the type could not be inferred.
         missing = []
         if not current_schema.get("table_name"):
             missing.append("table_name")
-        if not current_schema.get("columns") or len(current_schema["columns"]) == 0:
-            missing.append("columns (at least one column is required)")
-        else:
-            for c in current_schema["columns"]:
-                if "type" not in c:
-                    missing.append(f"data type for column '{c.get('name')}'")
-        
+        for c in current_schema.get("columns", []):
+            if "type" not in c or not c["type"]:
+                missing.append(f"data type for column '{c.get('name')}'")
+
         state["missing_fields"] = missing
-        
+
+        # ── Debug logs ──────────────────────────────────────────────
+        print(f"[CreateTableAgent] user_input     : {state.get('user_input')}")
+        print(f"[CreateTableAgent] schema_data    : {json.dumps(current_schema)}")
+        print(f"[CreateTableAgent] table_name     : {current_schema.get('table_name')}")
+        print(f"[CreateTableAgent] columns        : {current_schema.get('columns', [])}")
+        print(f"[CreateTableAgent] missing_fields : {missing}")
+        print(f"[CreateTableAgent] schema_ready   : {not missing}")
+        # ────────────────────────────────────────────────────────────
+
         if not missing:
             state["schema_ready"] = True
             state["interaction_phase"] = False
@@ -89,6 +155,8 @@ async def create_table_agent(state: AgentState) -> AgentState:
             state["debug_info"] = "Schema is complete and ready for query building."
         else:
             state["schema_ready"] = False
+            state["interaction_phase"] = True
+            state["active_agent"] = "create_table"
             state["debug_info"] = f"Missing schema information detected: {', '.join(missing)}"
             
     except Exception as e:

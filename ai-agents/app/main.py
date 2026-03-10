@@ -41,7 +41,7 @@ async def chat_endpoint(request: ChatRequest):
         "task_queue": [],
         "current_task": None,
         "operation_type": "",
-        "table_name": None,
+        "table_name": "",
         "schema": {},
         "data": None,
         "query": "",

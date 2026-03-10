@@ -56,13 +56,18 @@ def router_ddl_completion(state: AgentState):
         return "query_builder"
     return "interaction_planner"
 
-def router_interaction_loop(state: AgentState):
+def router_interaction_phase(state: AgentState):
     """
-    Controls the interaction loop between InteractionPlannerAgent and CreateTableAgent.
+    Checked immediately after memory.
+    If we are in an active interaction phase (AI asked user a question and is
+    waiting for the answer), bypass the full pipeline and go straight to
+    CreateTableAgent so accumulated schema_data is preserved.
     """
-    if state.get("user_provided_missing_data") == True:
-        return "create_table"
-    return "formatter"
+    if state.get("interaction_phase") == True:
+        active = state.get("active_agent", "create_table")
+        print(f"[Router] interaction_phase=True → routing directly to '{active}'")
+        return active
+    return "validation"
 
 def create_workflow():
     """
@@ -90,7 +95,17 @@ def create_workflow():
     # Entrance
     workflow.set_entry_point("supervisor")
     workflow.add_edge("supervisor", "memory")
-    workflow.add_edge("memory", "validation")
+
+    # After memory, check if we are mid-interaction (user answered a question).
+    # If so, skip the full pipeline and jump straight to CreateTableAgent.
+    workflow.add_conditional_edges(
+        "memory",
+        router_interaction_phase,
+        {
+            "create_table": "create_table",
+            "validation": "validation"
+        }
+    )
     
     # Scoping Phase
     workflow.add_conditional_edges(
@@ -137,15 +152,10 @@ def create_workflow():
         }
     )
     
-    # Interaction Loop
-    workflow.add_conditional_edges(
-        "interaction_planner",
-        router_interaction_loop,
-        {
-            "create_table": "create_table",
-            "formatter": "formatter"
-        }
-    )
+    # InteractionPlannerAgent has already written the question into state["response"].
+    # Terminate the graph here so the question is returned to the user.
+    # On the NEXT user turn, router_interaction_phase will route directly to create_table.
+    workflow.add_edge("interaction_planner", END)
     
     workflow.add_edge("query_builder", "execution")
     workflow.add_edge("execution", "formatter")

@@ -14,7 +14,7 @@ class AgentState(TypedDict):
     task_queue: List[Dict[str, Any]]
     current_task: Optional[Dict[str, Any]]
     operation_type: str
-    table_name: Optional[str]
+    table_name: str
     schema: Dict[str, Any]
     data: Any
     query: str

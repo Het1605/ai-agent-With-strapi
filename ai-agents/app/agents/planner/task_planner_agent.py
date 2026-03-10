@@ -66,6 +66,17 @@ async def task_planner_agent(state: AgentState) -> AgentState:
             
         state["task_queue"] = task_list
         state["current_task_index"] = 0
+
+        # If this is a fresh DDL_CREATE_TABLE plan, reset schema_data.
+        # We are guaranteed to be outside interaction_phase here — the early-return
+        # at the top of this function already handles the interaction loop bypass.
+        is_create_table = any(t.get("task_type") == "DDL_CREATE_TABLE" for t in task_list)
+        if is_create_table:
+            state["schema_data"] = {"table_name": None, "columns": []}
+            state["schema_ready"] = False
+            state["missing_fields"] = []
+            state["interaction_attempts"] = 0
+            print("[Schema Reset] Starting new table creation task — schema_data cleared.")
         
         # Update internal analysis
         tasks_summary = ", ".join([t.get("task_type") for t in task_list])
