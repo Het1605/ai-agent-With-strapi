@@ -65,6 +65,7 @@ async def chat_endpoint(request: ChatRequest):
         "interaction_request": {},
         "interaction_message": "",
         "strapi_payload": {},
+        "strapi_endpoint": "",
         "user_provided_missing_data": False,
         "interaction_complete": False,
         "interaction_phase": False,

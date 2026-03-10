@@ -41,6 +41,7 @@ class AgentState(TypedDict):
     interaction_request: Dict[str, Any]
     interaction_message: str
     strapi_payload: Dict[str, Any]
+    strapi_endpoint: str
     user_provided_missing_data: bool
     interaction_complete: bool
     route_decision: Optional[str]

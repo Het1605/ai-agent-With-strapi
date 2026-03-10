@@ -5,63 +5,73 @@ import json
 
 async def query_builder_agent(state: AgentState) -> AgentState:
     """
-    QueryBuilderAgent: AI agent that converts the structured schema_data into 
-    the exact JSON payload for the Strapi bridge, ensuring no properties are lost.
+    QueryBuilderAgent: Converts schema_data into the exact Strapi bridge payload.
+    Supports both DDL_CREATE_TABLE and DDL_MODIFY_SCHEMA operations.
     """
-    print("\n----- ENTERING QueryBuilderAgent (Preservation Mode) -----")
-    
+    print("\n----- ENTERING QueryBuilderAgent -----")
+
     llm = ChatOpenAI(model="gpt-4o", temperature=0)
-    
-    schema_data = state.get("schema_data", {})
-    table_name = schema_data.get("table_name", "untitled_collection")
-    
-    # Deterministic Naming Logic
-    singular_name = table_name.lower().replace(" ", "_")
-    plural_name = f"{singular_name}s"
-    collection_name = plural_name
-    display_name = singular_name.capitalize()
-    
+
+    schema_data    = state.get("schema_data", {})
+    ddl_operation  = state.get("ddl_operation")
+    table_name     = schema_data.get("table_name")
+
     system_prompt = (
-        "You are a Strapi Field Mapping Expert. Your role is to convert a list of logical columns "
-        "into the exact Strapi 'fields' array, ensuring NO properties are lost.\n\n"
-        "CRITICAL INSTRUCTION:\n"
-        "You must preserve 'min', 'max', 'default', 'unique', 'required', 'enum', 'relation', "
-        "'target', 'allowedTypes', and any other custom attributes provided in the input.\n\n"
-        "Expected Output Format:\n"
-        "{\n"
-        "  \"fields\": [\n"
-        "    {\"name\": \"...\", \"type\": \"...\", \"required\": ..., \"min\": ..., \"max\": ..., ...}\n"
-        "  ]\n"
-        "}\n\n"
-        "Output ONLY the final JSON object containing the 'fields' array."
+        "You are a Strapi Field Mapping Expert. Convert the provided columns list "
+        "into a Strapi-compatible 'fields' array.\n\n"
+        "RULES:\n"
+        "- Preserve ALL properties: type, enum, relation, target, min, max, required, unique, default, etc.\n"
+        "- Do NOT add or remove any properties.\n"
+        "- Output ONLY valid JSON: {\"fields\": [...]}"
     )
-    
-    human_msg = f"Columns to Transform: {json.dumps(schema_data.get('columns', []), indent=2)}"
-    
+
+    human_msg = f"Columns to map: {json.dumps(schema_data.get('columns', []), indent=2)}"
+
     response = await llm.ainvoke([
         SystemMessage(content=system_prompt),
         HumanMessage(content=human_msg)
     ])
-    
+
+    print('query builder response',response)
+
     try:
-        clean_content = response.content.replace("```json", "").replace("```", "").strip()
-        result = json.loads(clean_content)
-        fields = result.get("fields", [])
-        
-        # Construct final payload programmatically
-        payload = {
-            "collectionName": collection_name,
-            "singularName": singular_name,
-            "pluralName": plural_name,
-            "displayName": display_name,
-            "fields": fields
-        }
-        
-        state["strapi_payload"] = payload
-        print(f"QueryBuilderAgent: Generated deterministic payload for {collection_name} with {len(fields)} fields.")
-        
+        clean   = response.content.replace("```json", "").replace("```", "").strip()
+        result  = json.loads(clean)
+        fields  = result.get("fields", [])
+
+        singular_name   = table_name.lower().replace(" ", "_")
+        # Remove trailing 's' for simple plural → singular (matches Strapi bridge rule)
+        if singular_name.endswith('s') and not singular_name.endswith('ss'):
+            singular_name = singular_name[:-1]
+        plural_name     = f"{singular_name}s"
+        display_name    = singular_name.capitalize()
+
+        if ddl_operation == "DDL_MODIFY_SCHEMA":
+            # Modify-schema payload: collectionName is the singular name
+            payload = {
+                "collectionName": singular_name,
+                "fields": fields
+            }
+            endpoint = "http://strapi:1337/api/ai-schema/modify-schema"
+            print(f"QueryBuilderAgent: MODIFY payload for '{singular_name}' with {len(fields)} field(s).")
+        else:
+            # Create-collection payload (default)
+            payload = {
+                "collectionName": plural_name,
+                "singularName":   singular_name,
+                "pluralName":     plural_name,
+                "displayName":    display_name,
+                "fields":         fields
+            }
+            endpoint = "http://strapi:1337/api/ai-schema/create-collection"
+            print(f"QueryBuilderAgent: CREATE payload for '{plural_name}' with {len(fields)} field(s).")
+
+        state["strapi_payload"]  = payload
+        state["strapi_endpoint"] = endpoint
+
     except Exception as e:
-        print(f"Error in QueryBuilderAgent reasoning: {e}")
-        state["strapi_payload"] = {}
-        
+        print(f"QueryBuilderAgent: Error — {e}")
+        state["strapi_payload"]  = {}
+        state["strapi_endpoint"] = ""
+
     return state
