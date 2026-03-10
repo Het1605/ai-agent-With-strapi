@@ -11,6 +11,10 @@ from app.agents.ddl.ddl_router_agent import ddl_router_agent
 from app.agents.dml.dml_router_agent import dml_router_agent
 from app.agents.ddl.create_table_agent import create_table_agent
 from app.agents.ddl.modify_schema_agent import modify_schema_agent
+from app.agents.ddl.add_column_agent import add_column_agent
+from app.agents.ddl.update_collection_agent import update_collection_agent
+from app.agents.ddl.update_field_agent import update_field_agent
+from app.agents.ddl.delete_field_agent import delete_field_agent
 from app.agents.interaction.interaction_planner_agent import interaction_planner_agent
 from app.agents.query.query_builder_agent import query_builder_agent
 from app.agents.execution.execution_agent import execution_agent
@@ -68,6 +72,19 @@ def router_ddl_operation(state: AgentState):
         return "modify_schema"
     return "create_table"
 
+def router_modify_schema_operation(state: AgentState):
+    """
+    Routes from ModifySchemaAgent (classifier) to the correct sub-agent
+    based on state['operation'] written by ModifySchemaAgent.
+    """
+    op = state.get("operation")
+    allowed = {"add_column", "update_collection", "update_field", "delete_field"}
+    if op not in allowed:
+        print(f"[router_modify_schema_operation] Unknown operation '{op}' — defaulting to 'add_column'")
+        return "add_column"
+    print(f"[router_modify_schema_operation] Routing to '{op}'")
+    return op
+
 def router_state_decision(state: AgentState):
     """
     Reads the route decision written by StateRouterAgent and returns the
@@ -75,7 +92,11 @@ def router_state_decision(state: AgentState):
     Falls back to 'validation' if the field is missing or unrecognised.
     """
     decision = state.get("route_decision", "validation")
-    allowed = {"create_table", "modify_schema", "intent_router", "validation"}
+    allowed = {
+        "create_table", "modify_schema",
+        "add_column", "update_collection", "update_field", "delete_field",
+        "intent_router", "validation"
+    }
     if decision not in allowed:
         print(f"[router_state_decision] Unexpected decision '{decision}' — defaulting to 'validation'.")
         return "validation"
@@ -100,7 +121,11 @@ def create_workflow():
     workflow.add_node("ddl_router", ddl_router_agent)
     workflow.add_node("dml_router", dml_router_agent)
     workflow.add_node("create_table", create_table_agent)
-    workflow.add_node("modify_schema", modify_schema_agent)
+    workflow.add_node("modify_schema", modify_schema_agent)   # classifier/router
+    workflow.add_node("add_column", add_column_agent)
+    workflow.add_node("update_collection", update_collection_agent)
+    workflow.add_node("update_field", update_field_agent)
+    workflow.add_node("delete_field", delete_field_agent)
     workflow.add_node("interaction_planner", interaction_planner_agent)
     workflow.add_node("query_builder", query_builder_agent)
     workflow.add_node("execution", execution_agent)
@@ -118,10 +143,14 @@ def create_workflow():
         "state_router",
         router_state_decision,
         {
-            "create_table":   "create_table",
-            "modify_schema":  "create_table",   # placeholder until ModifySchemaAgent is built
-            "intent_router":  "intent_router",
-            "validation":     "validation",
+            "create_table":       "create_table",
+            "modify_schema":      "modify_schema",
+            "add_column":         "add_column",
+            "update_collection":  "update_collection",
+            "update_field":       "update_field",
+            "delete_field":       "delete_field",
+            "intent_router":      "intent_router",
+            "validation":         "validation",
         }
     )
     
@@ -159,8 +188,7 @@ def create_workflow():
     )
     
     # DDL Specialized Sub-flow
-    # DDLRouterAgent decides CREATE vs MODIFY; both share the same
-    # router_ddl_completion → interaction_planner / query_builder pattern.
+    # DDLRouterAgent → CREATE or MODIFY branch
     workflow.add_conditional_edges(
         "ddl_router",
         router_ddl_operation,
@@ -170,6 +198,7 @@ def create_workflow():
         }
     )
 
+    # CreateTableAgent completion routing
     workflow.add_conditional_edges(
         "create_table",
         router_ddl_completion,
@@ -179,14 +208,28 @@ def create_workflow():
         }
     )
 
+    # ModifySchemaAgent (classifier) routes to one of the 4 sub-agents
     workflow.add_conditional_edges(
         "modify_schema",
-        router_ddl_completion,
+        router_modify_schema_operation,
         {
-            "interaction_planner": "interaction_planner",
-            "query_builder":       "query_builder"
+            "add_column":        "add_column",
+            "update_collection": "update_collection",
+            "update_field":      "update_field",
+            "delete_field":      "delete_field",
         }
     )
+
+    # Each sub-agent shares the same completion router
+    for sub_agent in ["add_column", "update_collection", "update_field", "delete_field"]:
+        workflow.add_conditional_edges(
+            sub_agent,
+            router_ddl_completion,
+            {
+                "interaction_planner": "interaction_planner",
+                "query_builder":       "query_builder"
+            }
+        )
     
     # InteractionPlannerAgent has already written the question into state["response"].
     # Terminate the graph here so the question is returned to the user.

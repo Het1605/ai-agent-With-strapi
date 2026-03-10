@@ -32,6 +32,7 @@ class AgentState(TypedDict):
     current_task_index: int
     intent_category: str
     ddl_operation: str
+    operation: str
     dml_operation: str
     conversation_history: List[Dict[str, str]]
     field_registry: Dict[str, Any]

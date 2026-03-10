@@ -54,11 +54,15 @@ async def task_planner_agent(state: AgentState) -> AgentState:
         SystemMessage(content=system_prompt),
         HumanMessage(content=user_input)
     ])
+
+    print("Task_planner_response",response)
     
     try:
         # Clean and parse JSON response
         clean_content = response.content.replace("```json", "").replace("```", "").strip()
         task_list = json.loads(clean_content)
+
+        print("Task List:",task_list)
         
         # Ensure it's a list
         if not isinstance(task_list, list):

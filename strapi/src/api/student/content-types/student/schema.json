@@ -62,16 +62,14 @@
     "updatedAt": {
       "type": "datetime"
     },
-    "name": {
+    "Student_name": {
       "type": "string"
     },
     "email": {
       "type": "email"
     },
-    "roll_no": {
-      "type": "string",
-      "required": true,
-      "unique": true
+    "mobile_no": {
+      "type": "string"
     }
   }
 }
