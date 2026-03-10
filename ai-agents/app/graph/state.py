@@ -43,6 +43,7 @@ class AgentState(TypedDict):
     strapi_payload: Dict[str, Any]
     user_provided_missing_data: bool
     interaction_complete: bool
+    route_decision: Optional[str]
     memory: Dict[str, Any]
     messages: Annotated[List[Any], operator.add]
    

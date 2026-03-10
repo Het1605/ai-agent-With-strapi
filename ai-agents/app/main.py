@@ -70,6 +70,7 @@ async def chat_endpoint(request: ChatRequest):
         "interaction_phase": False,
         "active_agent": None,
         "interaction_attempts": 0,
+        "route_decision": None,
         "memory": {},
         "messages": []
     })

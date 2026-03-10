@@ -14,6 +14,7 @@ from app.agents.interaction.interaction_planner_agent import interaction_planner
 from app.agents.query.query_builder_agent import query_builder_agent
 from app.agents.execution.execution_agent import execution_agent
 from app.agents.response.response_formatter_agent import response_formatter_agent
+from app.agents.routing.state_router_agent import state_router_agent
 from app.memory.memory_manager import memory_manager
 
 def router_validation(state: AgentState):
@@ -56,18 +57,19 @@ def router_ddl_completion(state: AgentState):
         return "query_builder"
     return "interaction_planner"
 
-def router_interaction_phase(state: AgentState):
+def router_state_decision(state: AgentState):
     """
-    Checked immediately after memory.
-    If we are in an active interaction phase (AI asked user a question and is
-    waiting for the answer), bypass the full pipeline and go straight to
-    CreateTableAgent so accumulated schema_data is preserved.
+    Reads the route decision written by StateRouterAgent and returns the
+    target node name for LangGraph's conditional edge dispatcher.
+    Falls back to 'validation' if the field is missing or unrecognised.
     """
-    if state.get("interaction_phase") == True:
-        active = state.get("active_agent", "create_table")
-        print(f"[Router] interaction_phase=True → routing directly to '{active}'")
-        return active
-    return "validation"
+    decision = state.get("route_decision", "validation")
+    allowed = {"create_table", "modify_schema", "intent_router", "validation"}
+    if decision not in allowed:
+        print(f"[router_state_decision] Unexpected decision '{decision}' — defaulting to 'validation'.")
+        return "validation"
+    print(f"[router_state_decision] Dispatching to '{decision}'")
+    return decision
 
 def create_workflow():
     """
@@ -91,19 +93,23 @@ def create_workflow():
     workflow.add_node("query_builder", query_builder_agent)
     workflow.add_node("execution", execution_agent)
     workflow.add_node("formatter", response_formatter_agent)
+    workflow.add_node("state_router", state_router_agent)
     
     # Entrance
     workflow.set_entry_point("supervisor")
     workflow.add_edge("supervisor", "memory")
 
-    # After memory, check if we are mid-interaction (user answered a question).
-    # If so, skip the full pipeline and jump straight to CreateTableAgent.
+    # MemoryManager always runs, then StateRouterAgent (LLM-based) decides
+    # which path the workflow should take for this turn.
+    workflow.add_edge("memory", "state_router")
     workflow.add_conditional_edges(
-        "memory",
-        router_interaction_phase,
+        "state_router",
+        router_state_decision,
         {
-            "create_table": "create_table",
-            "validation": "validation"
+            "create_table":   "create_table",
+            "modify_schema":  "create_table",   # placeholder until ModifySchemaAgent is built
+            "intent_router":  "intent_router",
+            "validation":     "validation",
         }
     )
     

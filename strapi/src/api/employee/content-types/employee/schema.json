@@ -1,0 +1,11 @@
+{
+  "kind": "collectionType",
+  "collectionName": "employees",
+  "info": {
+    "singularName": "employee",
+    "pluralName": "employees",
+    "displayName": "Employees"
+  },
+  "options": {},
+  "attributes": {}
+}
