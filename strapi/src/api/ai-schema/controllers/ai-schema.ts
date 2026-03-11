@@ -350,8 +350,14 @@ export default {
                 responseFields[type] = Array.from(fieldMap[type]);
             }
 
+            // Get list of all collection UIDs
+            const collections = Object.keys(contentTypes)
+                .filter(uid => uid.startsWith('api::'))
+                .map(uid => uid.split('.')[1]); // Extract 'employee' from 'api::employee.employee'
+
             return ctx.send({
-                fields: responseFields
+                fields: responseFields,
+                collections
             });
         } catch (error: any) {
             // @ts-ignore

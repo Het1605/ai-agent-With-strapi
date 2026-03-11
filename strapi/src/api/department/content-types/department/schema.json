@@ -7,5 +7,16 @@
     "displayName": "Departments"
   },
   "options": {},
-  "attributes": {}
+  "attributes": {
+    "department_name": {
+      "type": "string",
+      "required": true,
+      "unique": true
+    },
+    "department_code": {
+      "type": "string",
+      "required": true,
+      "unique": true
+    }
+  }
 }

@@ -1,0 +1,39 @@
+{
+  "kind": "collectionType",
+  "collectionName": "employee_leaves",
+  "info": {
+    "singularName": "employee-leave",
+    "pluralName": "employee-leaves",
+    "displayName": "Employee-leaves"
+  },
+  "options": {},
+  "attributes": {
+    "employee": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::employee.employee",
+      "required": true
+    },
+    "leave_type": {
+      "type": "string",
+      "required": true
+    },
+    "start_date": {
+      "type": "date",
+      "required": true
+    },
+    "end_date": {
+      "type": "date",
+      "required": true
+    },
+    "reason": {
+      "type": "text",
+      "required": false
+    },
+    "approved": {
+      "type": "boolean",
+      "required": true,
+      "default": false
+    }
+  }
+}

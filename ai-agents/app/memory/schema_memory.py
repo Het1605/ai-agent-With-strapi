@@ -9,8 +9,7 @@ def load_field_registry():
     try:
         response = requests.get(url, timeout=5)
         if response.status_code == 200:
-            data = response.json()
-            return data.get("fields", {})
+            return response.json()
         else:
             print(f"SchemaMemory: Failed to fetch registry. Status: {response.status_code}")
             return {}

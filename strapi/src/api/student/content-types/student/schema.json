@@ -8,74 +8,30 @@
   },
   "options": {},
   "attributes": {
-    "publishedAt": {
-      "type": "datetime",
-      "configurable": false,
-      "writable": true,
-      "visible": true
+    "first_name": {
+      "type": "string",
+      "required": true,
+      "unique": false
     },
-    "createdBy": {
-      "type": "relation",
-      "relation": "oneToOne",
-      "target": "admin::user",
-      "configurable": false,
-      "writable": false,
-      "visible": false,
-      "useJoinTable": false,
-      "private": true
-    },
-    "updatedBy": {
-      "type": "relation",
-      "relation": "oneToOne",
-      "target": "admin::user",
-      "configurable": false,
-      "writable": false,
-      "visible": false,
-      "useJoinTable": false,
-      "private": true
-    },
-    "locale": {
-      "writable": true,
-      "private": true,
-      "configurable": false,
-      "visible": false,
-      "type": "string"
-    },
-    "localizations": {
-      "type": "relation",
-      "relation": "oneToMany",
-      "target": "api::student.student",
-      "writable": false,
-      "private": true,
-      "configurable": false,
-      "visible": false,
-      "unstable_virtual": true,
-      "joinColumn": {
-        "name": "document_id",
-        "referencedColumn": "document_id",
-        "referencedTable": "students"
-      }
-    },
-    "createdAt": {
-      "type": "datetime"
-    },
-    "updatedAt": {
-      "type": "datetime"
-    },
-    "Student_name": {
-      "type": "string"
+    "last_name": {
+      "type": "string",
+      "required": true,
+      "unique": false
     },
     "email": {
       "type": "email",
-      "default": 0,
-      "new_name": "email_address"
+      "required": true,
+      "unique": true
     },
-    "mobile_no": {
-      "type": "string"
+    "enrollment_number": {
+      "type": "string",
+      "required": true,
+      "unique": true
     },
-    "password": {
-      "type": "password",
-      "minLength": 8
+    "date_of_birth": {
+      "type": "date",
+      "required": true,
+      "unique": false
     }
   }
 }
