@@ -27,5 +27,14 @@ def attach_schema_memory_to_state(state: AgentState) -> AgentState:
     state["field_registry"]     = full_registry.get("fields", {})
     state["existing_collections"] = full_registry.get("collections", [])
     
-    print(f"SchemaMemory: {len(state['existing_collections'])} collection(s) found.")
+    if not isinstance(state["existing_collections"], list):
+        print(f"SchemaMemory: Warning! 'collections' from registry is not a list: {type(state['existing_collections'])}")
+        state["existing_collections"] = []
+
+    print(f"[SchemaLoader] Total Collections Found: {len(state['existing_collections'])}")
+    if state["existing_collections"]:
+        print(f"[SchemaLoader] Collections: {', '.join(state['existing_collections'])}")
+    else:
+        print("[SchemaLoader] No collections found.")
+
     return state

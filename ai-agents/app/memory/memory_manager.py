@@ -21,7 +21,9 @@ async def memory_manager(state: AgentState) -> AgentState:
    # print("add_user_message:",state)
     
     # 3. Load and attach schema metadata
+    print("[MemoryManager] Loading schema context (existing collections)...")
     state = attach_schema_memory_to_state(state)
+    print(f"[MemoryManager] Existing collections in state: {len(state.get('existing_collections', []))}")
 
    # print("attach_schema_memory_to_state :",state)
     

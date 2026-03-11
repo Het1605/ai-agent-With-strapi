@@ -12,15 +12,9 @@ _PREFIX_MAP = {
 async def intent_router_agent(state: AgentState) -> AgentState:
     """
     IntentRouterAgent: categorises the user request into DDL or DML.
-    
-    Now supports direct inference from user_input (to bypass TaskPlannerAgent).
-
-    Priority order:
-      1. interaction_phase bypass        → DDL (resume active agent)
-      2. Deterministic prefix matching   → DDL / DML (from current task if exists)
-      3. LLM classification              → DDL / DML (from user_input or task_type)
+    Upgraded to be context-aware (user_input + history).
     """
-    print("\n----- ENTERING IntentRouterAgent -----")
+    print("\n----- ENTERING IntentRouterAgent (Context Aware) -----")
 
     # ── 1. Interaction phase bypass ───────────────────────────────────
     if state.get("interaction_phase") == True:
@@ -29,14 +23,16 @@ async def intent_router_agent(state: AgentState) -> AgentState:
         return state
 
     user_input    = state.get("user_input", "")
+    history       = state.get("conversation_history", [])[-5:]
     task_queue    = state.get("task_queue", [])
     current_index = state.get("current_task_index", 0)
     
+    print(f"[IntentRouter] User Input: {user_input}")
+
     task_type = "UNKNOWN"
     if current_index < len(task_queue):
         current_task = task_queue[current_index]
         task_type = (current_task.get("task_type") or "UNKNOWN").strip().upper()
-        print(f"Detected Task Type from queue: {task_type}")
 
     # ── 2. Deterministic prefix matching (no LLM) ─────────────────────
     if task_type != "UNKNOWN":
@@ -45,26 +41,36 @@ async def intent_router_agent(state: AgentState) -> AgentState:
                 state["intent_category"] = category
                 state["analysis"] = (state.get("analysis") or "") + \
                     f"\nIntent Router: {task_type} → {category} (deterministic)."
-                print(f"Detected Category: {category} [deterministic]")
+                print(f"[IntentRouter] Decision: {category} [deterministic]")
                 return state
 
     # ── 3. LLM inference for classification ───────────────────────────
-    # We now interpret either the task_type OR the raw user_input
-    print(f"IntentRouterAgent: Calling LLM for intent classification.")
+    print(f"[IntentRouter] Calling LLM for intent classification.")
     llm = ChatOpenAI(model="gpt-4o", temperature=0)
 
     system_prompt = (
-        "You are an intent classifier for a database system.\n\n"
-        "Your goal is to classify the user's request into one of these categories:\n"
-        "  DDL — schema operations (create table, add field, modify collection, design system)\n"
-        "  DML — data operations (insert, update, delete, select records)\n\n"
-        "Rules:\n"
-        "1. If the user wants to CREATE or CHANGE the structure of the database (tables, columns), respond DDL.\n"
-        "2. If the user wants to MANIPULATE or VIEW experimental data (rows, records, entries), respond DML.\n"
-        "3. Respond ONLY with: DDL or DML."
+        "You are an intent classifier for a database AI system.\n\n"
+        "Your job is to classify the user's request into one of two categories:\n\n"
+        "DDL (Data Definition Language)\n"
+        "Operations that CREATE or MODIFY database structure.\n"
+        "Examples: create table, design database, add column, rename collection, delete field.\n\n"
+        "DML (Data Manipulation Language)\n"
+        "Operations that manipulate or retrieve stored records.\n"
+        "Examples: insert record, add data, update record, delete entry, show entries, fetch students.\n\n"
+        "Routing Rules:\n"
+        "1. If the request modifies database structure (collections, fields) → DDL\n"
+        "2. If the request works with actual data records/rows → DML\n"
+        "3. System design requests (create full database/design system) → DDL\n"
+        "4. Requests referencing 'entries', 'rows', or 'records' specifically → DML\n"
+        "5. Follow-up requests must consider conversation history.\n\n"
+        "Respond ONLY with exactly one word: DDL or DML."
     )
 
-    human_msg = f"Request: {task_type if task_type != 'UNKNOWN' else user_input}"
+    history_str = "\n".join([f"{m['role']}: {m['content']}" for m in history])
+    human_msg = (
+        f"Conversation History:\n{history_str}\n\n"
+        f"Current User Request: {user_input}"
+    )
     
     response = await llm.ainvoke([
         SystemMessage(content=system_prompt),
@@ -73,12 +79,12 @@ async def intent_router_agent(state: AgentState) -> AgentState:
 
     category = response.content.strip().upper()
     if category not in {"DDL", "DML"}:
-        print(f"IntentRouterAgent: LLM returned unexpected value '{category}' — defaulting to DDL.")
+        print(f"[IntentRouter] LLM returned unexpected value '{category}' — defaulting to DDL.")
         category = "DDL"
 
     state["intent_category"] = category
     state["analysis"] = (state.get("analysis") or "") + \
-        f"\nIntent Router: {category} (LLM inference)."
+        f"\nIntent Router: {category} (context-aware)."
 
-    print(f"Detected Category: {category} [LLM inference]")
+    print(f"[IntentRouter] Decision: {category}")
     return state

@@ -25,14 +25,16 @@ async def create_table_agent(state: AgentState) -> AgentState:
     Automatically designs schemas, infers fields/types/constraints,
     and supports multi-table generation for system designs.
     """
-    print("\n----- ENTERING CreateTableAgent (Senior Architect) -----")
+    print("\n----- ENTERING CreateTableAgent (Senior Architect Upgrade) -----")
 
     llm            = ChatOpenAI(model="gpt-4o", temperature=0)
     user_input     = state.get("user_input", "")
     full_registry  = state.get("field_registry", {})
-    full_registry  = state.get("field_registry", {})
-    field_registry = full_registry # backward compatibility if needed, though memory now separates them
-    existing_cols_list = state.get("existing_collections", [])
+    field_registry = full_registry 
+    existing_cols_list = state.get("existing_collections")
+    if not isinstance(existing_cols_list, list):
+        print(f"[CreateTableAgent] Warning: existing_collections is {type(existing_cols_list)}, defaulting to []")
+        existing_cols_list = []
     
     raw_schema     = state.get("schema_data") or {}
     active_agent   = state.get("active_agent") or "create_table"
@@ -40,11 +42,10 @@ async def create_table_agent(state: AgentState) -> AgentState:
     print("\n[SchemaContext] Existing Collections:")
     if existing_cols_list:
         for col in existing_cols_list:
-            print(col)
+            print(f" - {col}")
     else:
-        print("None")
+        print(" (none found)")
 
-    # We continue to read current_schema for context, but we will output a 'tables' list.
     current_schema = {
         "table_name": raw_schema.get("table_name") or None,
         "columns":    list(raw_schema.get("columns") or [])
@@ -52,33 +53,32 @@ async def create_table_agent(state: AgentState) -> AgentState:
 
     conversation_context = format_history(state, max_turns=4)
 
-    print(f"[CreateTableAgent] user_input: {user_input}")
+    print(f"[CreateTableAgent] Input: {user_input}")
 
     system_prompt = (
-        "You are a Senior Database Architect AI.\n\n"
-        "Your job is to design robust, best-practice database schemas for Strapi based on natural language requests.\n\n"
-        "CORE RESPONSIBILITIES:\n"
-        "1. AUTOMATIC INFERENCE: If the user provides only a table name (e.g. 'create employee table'), "
-        "automatically design a full, realistic schema.\n"
-        "2. SYSTEM DESIGN: If the user asks for a system (e.g. 'design ecommerce'), generate ALL necessary tables "
-        "and their relationships.\n"
-        "3. FIELD INFERENCE: Choose correct types: email, password, decimal, datetime, boolean.\n"
-        "4. CONSTRAINT INFERENCE: Add common-sense constraints.\n"
-        "5. RELATION DETECTION: Detect and create relations between tables.\n\n"
-        "CRITICAL RULES (STRICTLY ENFORCED):\n"
+        "You are a Senior Database Architect AI designing production-ready systems for Strapi.\n\n"
+        "CORE DESIGN PRINCIPLES:\n"
+        "1. REALISTIC ENTITIES: Generate complete schemas, not placeholders. Common entities (employee, product, student) MUST have 4-8 fields (e.g. email, phone, status, timestamps handled by Strapi).\n"
+        "2. SYSTEM DESIGN: For broad requests (e.g. 'college management'), design a COMPLETE 5-10 table system with normalized relations.\n"
+        "3. AUTOMATIC RELATIONS: Infer and link entities logically (order -> customer, enrollment -> student).\n"
+        "4. CONSTRAINT INFERENCE: Apply required: true, unique: true, enums (status: ['pending', 'active']), and defaults automatically.\n"
+        "5. MULTILINGUAL & SPELLING: Correct errors ('emploee' -> employee) and infer intent from Spanish, French, Hindi, Gujarati, etc.\n"
+        "6. NORMALIZATION: Prefer clean, relational data models (e.g. separate addresses into a component or table if appropriate, link objects correctly).\n\n"
+        "DATABASE CONTEXT:\n"
         f"Existing Collections in Database: {', '.join(existing_cols_list) if existing_cols_list else 'None'}\n"
-        "1. NEVER generate a table that already exists in the list above.\n"
-        "2. If a relation references an existing table, only reference it (e.g. order -> customer).\n"
-        "3. Only generate NEW tables explicitly requested or required as new components.\n"
-        "4. Do NOT recreate dependency tables if they already exist.\n"
-        "5. NEVER generate system fields (id, createdAt, updatedAt, publishedAt).\n"
-        "6. Return ONLY valid JSON. No conversational text.\n\n"
-        "COLUMN TYPE MAPPING (Strapi types):\n"
-        "- string, text, richtext, email, password, integer, biginteger, float, decimal, datetime, date, time, boolean, enumeration, relation, media, json.\n\n"
-        "RELATION FORMAT:\n"
-        '{"name": "...", "type": "relation", "relation": "oneToMany|manyToOne|oneToOne|manyToMany", "target": "target_table"}\n\n'
-        f"Available Strapi Field Options: {json.dumps(field_registry)}\n\n"
-        "Return ONLY valid JSON in this exact structure:\n"
+        "- NEVER recreate existing tables.\n"
+        "- If a relation references an existing table, use it as the target.\n"
+        "- Normalize table names to lowercase snake_case.\n\n"
+        "STRAPI COMPATIBILITY:\n"
+        "- NEVER generate: id, createdAt, updatedAt, publishedAt (Strapi generates these internally).\n"
+        "- Use Strapi types: string, text, richtext, email, password, integer, biginteger, float, decimal, datetime, date, time, boolean, enumeration, relation, media, json.\n"
+        "- Relation Format: {\"name\": \"...\", \"type\": \"relation\", \"relation\": \"oneToMany|manyToOne|oneToOne|manyToMany\", \"target\": \"target_table\"}\n\n"
+        "FIELD CAPABILITIES (Supported Strapi Options):\n"
+        f"{json.dumps(state['field_registry'] if state.get('field_registry') else {}, indent=2)}\n\n"
+        "OUTPUT REQUIREMENTS:\n"
+        "- Respond ONLY with valid JSON.\n"
+        "- No markdown blocks, no explanation, no comments.\n\n"
+        "JSON STRUCTURE:\n"
         "{\n"
         '  "tables": [\n'
         '    {\n'
@@ -92,9 +92,9 @@ async def create_table_agent(state: AgentState) -> AgentState:
     )
 
     human_msg = (
-        f"[Conversation Context]\n{conversation_context}\n\n"
-        f"[Current User Input]\n{user_input}\n\n"
-        f"[Current Partial Schema]\n{json.dumps(current_schema)}"
+        f"Conversation Context:\n{conversation_context}\n\n"
+        f"User Request: {user_input}\n\n"
+        f"Existing Collections: {existing_cols_list}"
     )
 
     response = await llm.ainvoke([
@@ -107,27 +107,20 @@ async def create_table_agent(state: AgentState) -> AgentState:
         extracted = json.loads(clean)
         raw_tables = extracted.get("tables", [])
         
-        # ── Filter out existing tables (Fail-safe) ───────────────────────
         tables = []
         for t in raw_tables:
             name = t.get("table_name")
             if name in existing_cols_list:
-                print(f"[CreateTableAgent] Skipped existing table: {name}")
+                print(f"[CreateTableAgent] Skipping existing table: {name}")
                 continue
             tables.append(t)
 
         if not tables:
-            print("[CreateTableAgent] Warning: No NEW tables generated by LLM.")
-            # Fallback only if we absoluteley must
-            if current_schema.get("table_name") and current_schema["table_name"] not in existing_cols_list:
-                tables = [current_schema]
-            else:
-                # If everything exists, we just success out or return warning
-                state["execution_result"] = {"message": "All requested tables already exist."}
-                state["schema_ready"] = True
-                return state
+            print("[CreateTableAgent] All designed tables already exist or none were created.")
+            state["execution_result"] = {"message": "All requested entities already exist."}
+            state["schema_ready"] = True
+            return state
 
-        # ── Normalise relations and UIDs for all tables ───────────────────
         for table in tables:
             for col in table.get("columns", []):
                 if col.get("type") == "relation" and col.get("target"):
@@ -136,19 +129,16 @@ async def create_table_agent(state: AgentState) -> AgentState:
                     col["target"] = uid
                     print(f"[RelationResolver] {table['table_name']}.{col['name']} -> {uid}")
 
-        # Update state with the designed tables
         state["schema_data"] = {"tables": tables}
-        
         state["schema_ready"]         = True
-        state["missing_fields"]       = []
         state["interaction_phase"]    = False
         state["active_agent"]         = None
         state["interaction_attempts"] = 0
 
-        print(f"[CreateTableAgent] Designed {len(tables)} new table(s) autonomously.")
+        print(f"[CreateTableAgent] Successfully designed {len(tables)} table(s).")
 
     except Exception as e:
-        print(f"[CreateTableAgent] Error: {e}")
-        state["execution_error"] = f"Senior Architect Error: {str(e)}"
+        print(f"[CreateTableAgent] Design Error: {e}")
+        state["execution_error"] = f"Architect Design Error: {str(e)}"
 
     return state

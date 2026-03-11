@@ -81,33 +81,51 @@ async def execution_agent(state: AgentState) -> AgentState:
             try:
                 print(f"[{idx}] Attempt {attempt}/{max_attempts}: Requesting POST {url}")
                 resp = requests.post(url, json=payload, timeout=30)
-                print(f"[{idx}] Status: {resp.status_code}")
                 
+                print(f"[{idx}] Status: {resp.status_code}")
+                try:
+                    # Log raw response body for all responses
+                    print(f"[{idx}] Response Body: {resp.text}")
+                except Exception:
+                    print(f"[{idx}] Unable to read response body")
+
                 if resp.status_code == 200:
                     results.append(resp.json())
                     success = True
                     break
-                elif resp.status_code == 400:
-                    error_body = resp.text.lower()
-                    if "already exists" in error_body:
-                        msg = f"ExecutionAgent: Duplicate collection skipped: {payload.get('singularName') or payload.get('collection')}"
-                        print(f"[{idx}] {msg}")
-                        results.append({"status": "skipped", "reason": "already exists"})
-                        success = True # Count as success to avoid retrying duplicate errors
-                        break
+                
+                # ── Error Handling ─────────────────────────────────────
+                if resp.status_code >= 400:
+                    try:
+                        error_json = resp.json()
+                        print(f"[{idx}] Parsed Error Detail: {json.dumps(error_json, indent=2)}")
+                    except:
+                        pass # Body already printed above as resp.text
+
+                    if resp.status_code == 400:
+                        error_body = resp.text.lower()
+                        if "already exists" in error_body:
+                            msg = f"ExecutionAgent: Duplicate collection skipped: {payload.get('singularName') or payload.get('collection')}"
+                            print(f"[{idx}] {msg}")
+                            results.append({"status": "skipped", "reason": "already exists"})
+                            success = True
+                            break
+                        else:
+                            errors.append(f"Payload {idx} failed (HTTP 400): {resp.text}")
+                            break # Don't retry client errors
+                    
+                    elif resp.status_code >= 500:
+                        print(f"[{idx}] Server error (HTTP {resp.status_code}). Retrying in 2s...")
+                        time.sleep(2)
                     else:
-                        errors.append(f"Payload {idx} failed (HTTP 400): {resp.text}")
-                        break # Don't retry client errors
-                elif resp.status_code >= 500:
-                    print(f"[{idx}] Server error (HTTP {resp.status_code}). Retrying in 2s...")
-                    time.sleep(2)
-                else:
-                    errors.append(f"Payload {idx} failed (HTTP {resp.status_code}): {resp.text}")
-                    break
+                        errors.append(f"Payload {idx} failed (HTTP {resp.status_code}): {resp.text}")
+                        break
+
             except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
-                print(f"[{idx}] Network error ({type(e).__name__}). Retrying in 2s...")
+                print(f"[{idx}] Network error ({type(e).__name__}): {str(e)}. Retrying in 2s...")
                 time.sleep(2)
             except Exception as e:
+                print(f"[{idx}] Runtime error: {str(e)}")
                 errors.append(f"Payload {idx} runtime error: {str(e)}")
                 break
 
