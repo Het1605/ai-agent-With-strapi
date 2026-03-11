@@ -1,10 +1,10 @@
 {
   "kind": "collectionType",
-  "collectionName": "products",
+  "collectionName": "leaves",
   "info": {
-    "singularName": "product",
-    "pluralName": "products",
-    "displayName": "Products"
+    "singularName": "leave",
+    "pluralName": "leaves",
+    "displayName": "Leaves"
   },
   "options": {},
   "attributes": {
@@ -50,7 +50,7 @@
     "localizations": {
       "type": "relation",
       "relation": "oneToMany",
-      "target": "api::product.product",
+      "target": "api::leave.leave",
       "writable": false,
       "private": true,
       "configurable": false,
@@ -59,14 +59,20 @@
       "joinColumn": {
         "name": "document_id",
         "referencedColumn": "document_id",
-        "referencedTable": "products"
+        "referencedTable": "leaves"
       }
     },
-    "name": {
-      "type": "string"
+    "description": {
+      "type": "text"
     },
-    "price": {
-      "type": "decimal"
+    "date_from": {
+      "type": "datetime"
+    },
+    "date_to": {
+      "type": "datetime"
+    },
+    "created_at": {
+      "type": "datetime"
     }
   }
 }

@@ -1,6 +1,7 @@
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from app.graph.state import AgentState
+from app.agents.ddl.schema_utils import format_history
 import json
 
 VALID_OPERATIONS = {"add_column", "update_collection", "update_field", "delete_field"}
@@ -27,6 +28,7 @@ async def modify_schema_agent(state: AgentState) -> AgentState:
     print(f"User Input: {user_input}")
 
     llm = ChatOpenAI(model="gpt-4o", temperature=0)
+    conversation_context = format_history(state, max_turns=2)
 
     system_prompt = (
         "You are a Schema Modification Classifier in a multi-agent database system.\n\n"
@@ -52,7 +54,10 @@ async def modify_schema_agent(state: AgentState) -> AgentState:
 
     response = await llm.ainvoke([
         SystemMessage(content=system_prompt),
-        HumanMessage(content=f"User request: {user_input}")
+        HumanMessage(content=(
+            f"[Conversation Context]\n{conversation_context}\n\n"
+            f"[Current User Request]\n{user_input}"
+        ))
     ])
 
     operation    = "add_column"  # safe default

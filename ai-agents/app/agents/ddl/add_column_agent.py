@@ -1,14 +1,14 @@
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from app.graph.state import AgentState
-from app.agents.ddl.schema_utils import maybe_reset_schema
+from app.agents.ddl.schema_utils import maybe_reset_schema, format_history
 import json
 import re
 
 
 def _resolve_relation_uid(raw_target: str) -> str:
-    noise = r'\b(table|collection|model|entity|db|database|the|a|an)\b'
-    cleaned = re.sub(noise, '', raw_target, flags=re.IGNORECASE).strip()
+    noise    = r'\b(table|collection|model|entity|db|database|the|a|an)\b'
+    cleaned  = re.sub(noise, '', raw_target, flags=re.IGNORECASE).strip()
     singular = re.sub(r'[\s\-_]+', '_', cleaned.lower()).strip('_')
     if singular.endswith('sses') or singular.endswith('ches') or singular.endswith('xes'):
         pass
@@ -21,56 +21,78 @@ def _resolve_relation_uid(raw_target: str) -> str:
 
 async def add_column_agent(state: AgentState) -> AgentState:
     """
-    AddColumnAgent: extracts NEW fields/columns to add to an existing collection.
-    Routes → interaction_planner (missing info) or → query_builder (complete).
+    AddColumnAgent: extracts NEW fields to add to an existing collection.
+    Uses universal prompt template with conversation context injection.
     """
     print("\n----- ENTERING AddColumnAgent -----")
 
-    llm = ChatOpenAI(model="gpt-4o", temperature=0)
-
+    llm            = ChatOpenAI(model="gpt-4o", temperature=0)
     user_input     = state.get("user_input", "")
     field_registry = state.get("field_registry", {})
     modify_op      = state.get("modify_operation") or {}
     raw_schema     = state.get("schema_data") or {}
+    active_agent   = state.get("active_agent") or "add_column"
+    missing_fields = state.get("missing_fields") or []
+
     current_schema = {
-        # Seed from ModifySchemaAgent's pre-extraction if available
         "table_name": modify_op.get("target_table") or raw_schema.get("table_name") or None,
         "columns":    list(raw_schema.get("columns") or [])
     }
 
-    print(f"[AddColumnAgent] user_input    : {user_input}")
-    print(f"[AddColumnAgent] seeded table  : {current_schema['table_name']}")
+    conversation_context = format_history(state, max_turns=4)
+
+    print(f"[AddColumnAgent] user_input   : {user_input}")
+    print(f"[AddColumnAgent] seeded table : {current_schema['table_name']}")
 
     system_prompt = (
-        "You are a Database Field Extraction Specialist.\n\n"
+        "You are a Database Schema Extraction Agent for an AI database assistant.\n\n"
+        "Your job is to extract NEW FIELD definitions to add to an existing collection.\n"
+        "You DO NOT generate conversational text. You ONLY return structured JSON.\n\n"
+        "BEHAVIOR RULES:\n"
+        "1. NEVER hallucinate fields the user did not mention.\n"
+        "2. NEVER add constraints (required, unique, default, min, max) unless explicitly stated.\n"
+        "3. Use schema_data as the source of truth — merge new columns, do not rebuild.\n"
+        "4. Only extract what the user actually said.\n"
+        "5. If information is missing, do not guess — leave it unresolved.\n\n"
+        "ENTITY NAME RULES:\n"
+        "- Extract the ACTUAL entity noun: 'product', 'order', 'employee'\n"
+        "- NEVER use: 'collection','table','column','field','add','new' as table names\n\n"
+        "COLUMN TYPE INFERENCE:\n"
+        "  name/title → string | description/bio → text | age/count/stock/qty → integer\n"
+        "  price/amount/total/cost/salary → decimal | email → email | password → password\n"
+        "  date/created_at/updated_at → datetime | is_*/active/verified → boolean\n"
+        "  If unsure → string\n\n"
+        "RELATION RULES: 'one X has many Y' → type=relation, relation=oneToMany, target=Y\n"
+        "ENUM RULES: 'role (admin, user, guest)' → type=enumeration, enum=['admin','user','guest']\n\n"
+        "MERGING RULES:\n"
+        "- Do NOT overwrite existing columns\n"
+        "- Only add the NEW columns the user mentioned\n"
+        "- A follow-up like 'decimal' resolves the type for a previously unnamed column\n\n"
         f"Strapi Field Registry: {json.dumps(field_registry)}\n\n"
-        "Instructions:\n"
-        "- Extract the TARGET collection name (entity noun: 'product', 'order', etc.).\n"
-        "- NEVER use generic words as collection names: 'collection', 'table', 'add', 'column', 'field'.\n"
-        "- If no clear collection name is present, set table_name to null.\n"
-        "- Extract the NEW fields to be added.\n"
-        "- Infer types: name/title→string, description/bio→text, email→email, "
-        "password→password, price/amount/cost→decimal, age/count/stock/quantity→integer, "
-        "date/created_at→datetime, is_*/active/verified→boolean.\n"
-        "- For ENUM: extract enum values.\n"
-        "- For RELATION: extract relation type and target.\n"
-        "- NEVER add constraints unless user explicitly states them.\n\n"
-        'Output ONLY valid JSON: {"extracted_data": {"table_name": <str|null>, "columns": [...]}}'
+        "Return ONLY valid JSON:\n"
+        '{"table_name": <str|null>, "columns": [...], "updates": {}, "missing_fields": []}'
+    )
+
+    human_msg = (
+        f"[Conversation Context]\n{conversation_context}\n\n"
+        f"[Current User Input]\n{user_input}\n\n"
+        f"[Current Schema State]\n{json.dumps(current_schema)}\n\n"
+        f"[Missing Fields]\n{json.dumps(missing_fields)}\n\n"
+        f"[Active Agent]\n{active_agent}"
     )
 
     response = await llm.ainvoke([
         SystemMessage(content=system_prompt),
-        HumanMessage(content=f"User request: {user_input}")
+        HumanMessage(content=human_msg)
     ])
 
     try:
         clean     = response.content.replace("```json", "").replace("```", "").strip()
-        extracted = json.loads(clean).get("extracted_data", {})
+        extracted = json.loads(clean)
 
         new_table_name = extracted.get("table_name")
         if new_table_name:
             maybe_reset_schema(state, new_table_name)
-            # Re-read after potential reset so we don't carry stale columns
             raw_schema = state.get("schema_data") or {}
             current_schema = {
                 "table_name": new_table_name,
@@ -96,19 +118,27 @@ async def add_column_agent(state: AgentState) -> AgentState:
 
         state["schema_data"] = current_schema
 
-        # Missing field detection
-        missing = []
-        if not current_schema.get("table_name"):
+        # Missing field detection — combine LLM suggestion with Python checks
+        llm_missing = extracted.get("missing_fields", [])
+        missing = list(llm_missing) if llm_missing else []
+
+        if not current_schema.get("table_name") and "table_name" not in missing:
             missing.append("table_name")
-        if not current_schema.get("columns"):
+        if not current_schema.get("columns") and "column_name" not in missing:
             missing.append("column_name")
         for col in current_schema["columns"]:
             if not col.get("type"):
-                missing.append(f"type for column '{col.get('name')}'")
+                key = f"type for column '{col.get('name')}'"
+                if key not in missing:
+                    missing.append(key)
             if col.get("type") == "enumeration" and not col.get("enum"):
-                missing.append(f"enum values for '{col.get('name')}'")
+                key = f"enum values for '{col.get('name')}'"
+                if key not in missing:
+                    missing.append(key)
             if col.get("type") == "relation" and not col.get("target"):
-                missing.append(f"relation target for '{col.get('name')}'")
+                key = f"relation target for '{col.get('name')}'"
+                if key not in missing:
+                    missing.append(key)
 
         state["missing_fields"] = missing
 

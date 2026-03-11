@@ -11,13 +11,19 @@ async def memory_manager(state: AgentState) -> AgentState:
     
     # 1. Initialize conversation history
     state = initialize_conversation_memory(state)
+
+   # print("initialize_conversation_memory:",state)
     
     # 2. Add current user message to history
     # (The user request says to add it here)
     state = add_user_message(state)
+
+   # print("add_user_message:",state)
     
     # 3. Load and attach schema metadata
     state = attach_schema_memory_to_state(state)
+
+   # print("attach_schema_memory_to_state :",state)
     
     print(f"MemoryManager: Conversation history size -> {len(state['conversation_history'])}")
     print(f"MemoryManager: Field registry loaded -> {bool(state['field_registry'])}")

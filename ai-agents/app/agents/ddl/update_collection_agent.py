@@ -1,77 +1,94 @@
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from app.graph.state import AgentState
-from app.agents.ddl.schema_utils import maybe_reset_schema
+from app.agents.ddl.schema_utils import maybe_reset_schema, format_history
 import json
 
 
 async def update_collection_agent(state: AgentState) -> AgentState:
     """
     UpdateCollectionAgent: handles collection-level changes.
-    Supports:
-      - Renaming displayName
-      - Deleting the entire collection (data.delete = true)
-
-    Routes → interaction_planner (missing info) or → query_builder (complete).
+    Supports renaming displayName and deleting the entire collection.
+    Uses universal prompt template with conversation context injection.
     """
     print("\n----- ENTERING UpdateCollectionAgent -----")
 
-    llm = ChatOpenAI(model="gpt-4o", temperature=0)
+    llm          = ChatOpenAI(model="gpt-4o", temperature=0)
+    user_input   = state.get("user_input", "")
+    modify_op    = state.get("modify_operation") or {}
+    active_agent = state.get("active_agent") or "update_collection"
+    missing_fields = state.get("missing_fields") or []
 
-    user_input  = state.get("user_input", "")
-    modify_op   = state.get("modify_operation") or {}
-    # Always start fresh — do not carry previous schema_data for collection ops
+    # Always start fresh — never carry previous collection state
     current_schema = {
         "table_name": modify_op.get("target_table") or None,
     }
+
+    conversation_context = format_history(state, max_turns=4)
 
     print(f"[UpdateCollectionAgent] user_input    : {user_input}")
     print(f"[UpdateCollectionAgent] seeded table  : {current_schema['table_name']}")
 
     system_prompt = (
-        "You are a strict database schema modification agent.\n\n"
-        "Extract ONLY the collection-level operation the user explicitly requested.\n\n"
-        "CRITICAL RULES:\n"
-        "1. NEVER add settings the user did not mention.\n"
-        "2. Extract the TARGET collection name (entity noun only: 'product', 'order', etc.)\n"
-        "   NEVER use: 'collection', 'table', 'the', 'rename', 'delete' as the name.\n"
-        "3. If user says 'delete collection X', 'drop table X', 'remove collection X' → set delete: true.\n"
-        "4. If user says 'rename X to Y', 'update display name of X to Y' → set new_display_name to Y.\n"
-        "5. If collection name cannot be identified, set table_name to null.\n\n"
-        "Output ONLY valid JSON:\n"
-        '{"extracted_data": {"table_name": <str|null>, "delete": <bool>, "new_display_name": <str|null>}}'
+        "You are a Database Schema Extraction Agent for an AI database assistant.\n\n"
+        "Your job is to extract COLLECTION-LEVEL modification instructions from user input.\n"
+        "You DO NOT generate conversational text. You ONLY return structured JSON.\n\n"
+        "BEHAVIOR RULES:\n"
+        "1. NEVER add settings the user did not explicitly mention.\n"
+        "2. Extract the TARGET collection name (entity noun: 'product', 'order', etc.)\n"
+        "   NEVER use: 'collection','table','the','rename','delete' as the name.\n"
+        "3. If collection name cannot be identified from input or context → set table_name to null.\n\n"
+        "SUPPORTED OPERATIONS:\n"
+        "  DELETE collection: user says 'delete X', 'drop X', 'remove collection X'\n"
+        "    → set updates.delete = true\n"
+        "  RENAME display name: user says 'rename X to Y', 'update display name of X to Y'\n"
+        "    → set updates.new_display_name = 'Y'\n\n"
+        "CONTEXT USE: Use conversation history to resolve collection name if not stated explicitly.\n\n"
+        "Return ONLY valid JSON:\n"
+        '{"table_name": <str|null>, "columns": [], "updates": {"delete": false, "new_display_name": null}, "missing_fields": []}'
+    )
+
+    human_msg = (
+        f"[Conversation Context]\n{conversation_context}\n\n"
+        f"[Current User Input]\n{user_input}\n\n"
+        f"[Current Schema State]\n{json.dumps(current_schema)}\n\n"
+        f"[Missing Fields]\n{json.dumps(missing_fields)}\n\n"
+        f"[Active Agent]\n{active_agent}"
     )
 
     response = await llm.ainvoke([
         SystemMessage(content=system_prompt),
-        HumanMessage(content=f"User request: {user_input}")
+        HumanMessage(content=human_msg)
     ])
 
     try:
         clean     = response.content.replace("```json", "").replace("```", "").strip()
-        print("Clean",clean)
-        extracted = json.loads(clean).get("extracted_data", {})
+        print(f"[UpdateCollectionAgent] LLM raw: {clean}")
+        extracted = json.loads(clean)
 
         new_table_name = extracted.get("table_name")
         if new_table_name:
             maybe_reset_schema(state, new_table_name)
             current_schema["table_name"] = new_table_name
 
-        # Build the operation-specific data payload
-        if extracted.get("delete") == True:
-            current_schema["delete"] = True
+        updates = extracted.get("updates") or {}
+        if updates.get("delete") == True:
+            current_schema["delete"]           = True
             current_schema["new_display_name"] = None
         else:
-            current_schema["delete"] = False
-            current_schema["new_display_name"] = extracted.get("new_display_name")
+            current_schema["delete"]           = False
+            current_schema["new_display_name"] = updates.get("new_display_name")
 
         state["schema_data"] = current_schema
 
         # Missing field detection
-        missing = []
-        if not current_schema.get("table_name"):
+        llm_missing = extracted.get("missing_fields") or []
+        missing = list(llm_missing)
+
+        if not current_schema.get("table_name") and "table_name" not in missing:
             missing.append("table_name")
-        if not current_schema.get("delete") and not current_schema.get("new_display_name"):
+        if (not current_schema.get("delete") and not current_schema.get("new_display_name")
+                and "operation detail (new display name or delete confirmation)" not in missing):
             missing.append("operation detail (new display name or delete confirmation)")
 
         state["missing_fields"] = missing
@@ -80,7 +97,6 @@ async def update_collection_agent(state: AgentState) -> AgentState:
         print(f"[UpdateCollectionAgent] delete          : {current_schema.get('delete')}")
         print(f"[UpdateCollectionAgent] new_display_name: {current_schema.get('new_display_name')}")
         print(f"[UpdateCollectionAgent] missing_fields  : {missing}")
-        print(f"[UpdateCollectionAgent] schema_ready    : {not missing}")
 
         if not missing:
             state["schema_ready"]         = True

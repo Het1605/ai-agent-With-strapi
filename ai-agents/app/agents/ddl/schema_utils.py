@@ -4,6 +4,26 @@ schema_utils.py — shared helpers for schema-related agents.
 from app.graph.state import AgentState
 
 
+def format_history(state: AgentState, max_turns: int = 4) -> str:
+    """
+    Format the last `max_turns` conversation turns into a readable context block
+    for injection into LLM prompts.
+
+    Returns a string like:
+        User: create collection
+        Assistant: What should the collection be named?
+        User: product
+    or "(no prior conversation)" if history is empty.
+    """
+    history = (state.get("conversation_history") or [])[-max_turns:]
+    if not history:
+        return "(no prior conversation)"
+    return "\n".join(
+        f"{m.get('role', 'user').capitalize()}: {m.get('content', '')}"
+        for m in history
+    )
+
+
 def maybe_reset_schema(state: AgentState, new_table_name: str | None) -> bool:
     """
     Detects a table change and resets schema_data when the target collection
