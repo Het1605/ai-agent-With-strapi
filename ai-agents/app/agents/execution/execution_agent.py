@@ -77,6 +77,17 @@ async def execution_agent(state: AgentState) -> AgentState:
             state["execution_error"]   = None
             state["interaction_phase"] = False
             print("ExecutionAgent: Operation completed successfully.")
+
+            # ── Post-success cleanup ───────────────────────────────────
+            # Clear all per-task execution state so they don't contaminate
+            # the next user request (e.g. update_field → create collection).
+            print("ExecutionAgent: Clearing task execution state to prevent leakage.")
+            state["operation"]       = ""
+            state["strapi_payload"]  = {}
+            state["strapi_endpoint"] = ""
+            state["missing_fields"]  = []
+            state["schema_ready"]    = False
+            state["modify_operation"] = {}
         else:
             state["execution_error"]   = f"Strapi returned HTTP {resp.status_code}: {resp.text}"
             state["execution_result"]  = None

@@ -1,10 +1,10 @@
 {
   "kind": "collectionType",
-  "collectionName": "students",
+  "collectionName": "employees",
   "info": {
-    "singularName": "student",
-    "pluralName": "students",
-    "displayName": "Students"
+    "singularName": "employee",
+    "pluralName": "employees",
+    "displayName": "Employees"
   },
   "options": {},
   "attributes": {
@@ -44,7 +44,7 @@
     "localizations": {
       "type": "relation",
       "relation": "oneToMany",
-      "target": "api::student.student",
+      "target": "api::employee.employee",
       "writable": false,
       "private": true,
       "configurable": false,
@@ -53,7 +53,7 @@
       "joinColumn": {
         "name": "document_id",
         "referencedColumn": "document_id",
-        "referencedTable": "students"
+        "referencedTable": "employees"
       }
     },
     "createdAt": {
@@ -62,20 +62,21 @@
     "updatedAt": {
       "type": "datetime"
     },
-    "Student_name": {
+    "name": {
+      "type": "string"
+    },
+    "role": {
       "type": "string"
     },
     "email": {
       "type": "email",
-      "default": 0,
-      "new_name": "email_address"
+      "required": true
     },
-    "mobile_no": {
-      "type": "string"
+    "passwords": {
+      "type": "password"
     },
     "password": {
-      "type": "password",
-      "minLength": 8
+      "type": "password"
     }
   }
 }
