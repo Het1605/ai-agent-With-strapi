@@ -30,13 +30,19 @@ async def create_table_agent(state: AgentState) -> AgentState:
     llm            = ChatOpenAI(model="gpt-4o", temperature=0)
     user_input     = state.get("user_input", "")
     full_registry  = state.get("field_registry", {})
-    field_registry = full_registry.get("fields", {})
-    existing_cols_list = full_registry.get("collections", [])
+    full_registry  = state.get("field_registry", {})
+    field_registry = full_registry # backward compatibility if needed, though memory now separates them
+    existing_cols_list = state.get("existing_collections", [])
     
     raw_schema     = state.get("schema_data") or {}
     active_agent   = state.get("active_agent") or "create_table"
 
-    print(f"[SchemaContext] Existing Collections: {existing_cols_list}")
+    print("\n[SchemaContext] Existing Collections:")
+    if existing_cols_list:
+        for col in existing_cols_list:
+            print(col)
+    else:
+        print("None")
 
     # We continue to read current_schema for context, but we will output a 'tables' list.
     current_schema = {

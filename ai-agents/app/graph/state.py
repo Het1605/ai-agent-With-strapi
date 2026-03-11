@@ -37,6 +37,7 @@ class AgentState(TypedDict):
     dml_operation: str
     conversation_history: List[Dict[str, str]]
     field_registry: Dict[str, Any]
+    existing_collections: List[str]
     schema_data: Dict[str, Any]
     schema_ready: bool
     debug_info: str

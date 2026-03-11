@@ -202,15 +202,8 @@ def create_workflow():
         }
     )
 
-    # CreateTableAgent completion routing
-    workflow.add_conditional_edges(
-        "create_table",
-        router_ddl_completion,
-        {
-            "interaction_planner": "interaction_planner",
-            "query_builder":       "query_builder"
-        }
-    )
+    # CreateTableAgent is now autonomous; always goes to query_builder
+    workflow.add_edge("create_table", "query_builder")
 
     # ModifySchemaAgent (classifier) routes to one of the 4 sub-agents
     workflow.add_conditional_edges(

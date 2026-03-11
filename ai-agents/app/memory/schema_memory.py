@@ -3,7 +3,7 @@ from app.graph.state import AgentState
 
 def load_field_registry():
     """
-    Fetches the field capabilities from the Strapi runtime endpoint.
+    Fetches the field capabilities and collection list from the Strapi runtime endpoint.
     """
     url = "http://strapi:1337/api/ai-schema/field-registry"
     try:
@@ -19,9 +19,13 @@ def load_field_registry():
 
 def attach_schema_memory_to_state(state: AgentState) -> AgentState:
     """
-    Attaches the field registry to the shared state if not already present.
+    Refreshes the schema memory (field registry and collections) on every request.
     """
-    if not state.get("field_registry"):
-        print("SchemaMemory: Loading field registry from Strapi...")
-        state["field_registry"] = load_field_registry()
+    print("SchemaMemory: Refreshing schema context from Strapi...")
+    full_registry = load_field_registry()
+    
+    state["field_registry"]     = full_registry.get("fields", {})
+    state["existing_collections"] = full_registry.get("collections", [])
+    
+    print(f"SchemaMemory: {len(state['existing_collections'])} collection(s) found.")
     return state
