@@ -32,14 +32,19 @@ async def task_planner_agent(state: AgentState) -> AgentState:
         "INSTRUCTIONS:\n"
         "1. If the user is providing missing details (like column types or names) for a previously discussed task, "
         "ensure the task queue reflects the CONTINUATION of that task.\n"
-        "2. Allowed Task Types:\n"
-        "- DDL_CREATE_TABLE: Create a new collection/table.\n"
-        "- DDL_MODIFY_SCHEMA: Add/update/remove fields in a table.\n"
-        "- DDL_DELETE_TABLE: Delete a table.\n"
+        "2. Allowed Task Types (ONLY these two DDL types exist):\n"
+        "- DDL_CREATE_TABLE: Create a brand new collection/table from scratch.\n"
+        "  Examples: 'create table orders', 'create collection product', 'make new student table'\n"
+        "- DDL_MODIFY_SCHEMA: Any modification to an existing schema.\n"
+        "  Examples: 'add column price', 'delete column email', 'rename column email to email_address',\n"
+        "           'make field required', 'make field unique', 'set default value',\n"
+        "           'delete collection product', 'rename collection orders to purchase'\n"
+        "  IMPORTANT: Collection/table DELETION is DDL_MODIFY_SCHEMA, NOT a separate delete type.\n"
         "- DML_SELECT: Retrieve records.\n"
         "- DML_INSERT: Create new records.\n"
         "- DML_UPDATE: Update existing records.\n"
-        "- DML_DELETE: Delete records.\n\n"
+        "- DML_DELETE: Delete records (row-level, NOT table deletion).\n\n"
+        "CRITICAL: DDL_DELETE_TABLE does NOT exist. Use DDL_MODIFY_SCHEMA for collection deletion.\n\n"
         "Respond ONLY with a valid JSON array of objects. Each object must have:\n"
         "- 'task_type': One of the allowed types above.\n"
         "- 'target': The table name or 'system'.\n"
@@ -70,6 +75,13 @@ async def task_planner_agent(state: AgentState) -> AgentState:
             
         state["task_queue"] = task_list
         state["current_task_index"] = 0
+
+        # Safety normalization: DDL_DELETE_TABLE is not supported.
+        # Any such task must be silently rewritten to DDL_MODIFY_SCHEMA.
+        for task in task_list:
+            if task.get("task_type") == "DDL_DELETE_TABLE":
+                print(f"[TaskPlannerAgent] Rewriting DDL_DELETE_TABLE → DDL_MODIFY_SCHEMA for target '{task.get('target')}'")
+                task["task_type"] = "DDL_MODIFY_SCHEMA"
 
         # If this is a fresh DDL_CREATE_TABLE plan, reset schema_data.
         # We are guaranteed to be outside interaction_phase here — the early-return

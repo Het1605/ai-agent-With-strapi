@@ -430,49 +430,6 @@ export interface AdminUser extends Struct.CollectionTypeSchema {
   };
 }
 
-export interface ApiEmployeeEmployee extends Struct.CollectionTypeSchema {
-  collectionName: 'employees';
-  info: {
-    displayName: 'Employees';
-    pluralName: 'employees';
-    singularName: 'employee';
-  };
-  options: {
-    draftAndPublish: false;
-  };
-  attributes: {
-    createdAt: Schema.Attribute.DateTime;
-    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-    description: Schema.Attribute.Text;
-    discount: Schema.Attribute.Decimal;
-    email: Schema.Attribute.Email &
-      Schema.Attribute.Required &
-      Schema.Attribute.Unique;
-    is_active: Schema.Attribute.Boolean;
-    joining_date: Schema.Attribute.DateTime;
-    jpining_date: Schema.Attribute.DateTime;
-    locale: Schema.Attribute.String & Schema.Attribute.Private;
-    localizations: Schema.Attribute.Relation<
-      'oneToMany',
-      'api::employee.employee'
-    > &
-      Schema.Attribute.Private;
-    name: Schema.Attribute.String & Schema.Attribute.Required;
-    password: Schema.Attribute.Password &
-      Schema.Attribute.SetMinMaxLength<{
-        minLength: 8;
-      }>;
-    price: Schema.Attribute.Decimal;
-    publishedAt: Schema.Attribute.DateTime;
-    quantity: Schema.Attribute.Integer;
-    salary: Schema.Attribute.Decimal & Schema.Attribute.Unique;
-    updatedAt: Schema.Attribute.DateTime;
-    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-  };
-}
-
 export interface ApiOrderOrder extends Struct.CollectionTypeSchema {
   collectionName: 'orders';
   info: {
@@ -488,6 +445,7 @@ export interface ApiOrderOrder extends Struct.CollectionTypeSchema {
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
     discount: Schema.Attribute.Decimal &
+      Schema.Attribute.Required &
       Schema.Attribute.Unique &
       Schema.Attribute.DefaultTo<14>;
     email: Schema.Attribute.Email & Schema.Attribute.Unique;
@@ -507,7 +465,8 @@ export interface ApiOrderOrder extends Struct.CollectionTypeSchema {
 export interface ApiProductProduct extends Struct.CollectionTypeSchema {
   collectionName: 'products';
   info: {
-    displayName: 'Products';
+    description: '';
+    displayName: 'Product Catalog';
     pluralName: 'products';
     singularName: 'product';
   };
@@ -518,14 +477,12 @@ export interface ApiProductProduct extends Struct.CollectionTypeSchema {
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
-    description: Schema.Attribute.Text;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
       'oneToMany',
       'api::product.product'
     > &
       Schema.Attribute.Private;
-    price: Schema.Attribute.Decimal & Schema.Attribute.DefaultTo<0>;
     publishedAt: Schema.Attribute.DateTime;
     rating: Schema.Attribute.Decimal &
       Schema.Attribute.Unique &
@@ -1078,7 +1035,6 @@ declare module '@strapi/strapi' {
       'admin::transfer-token': AdminTransferToken;
       'admin::transfer-token-permission': AdminTransferTokenPermission;
       'admin::user': AdminUser;
-      'api::employee.employee': ApiEmployeeEmployee;
       'api::order.order': ApiOrderOrder;
       'api::product.product': ApiProductProduct;
       'api::student.student': ApiStudentStudent;

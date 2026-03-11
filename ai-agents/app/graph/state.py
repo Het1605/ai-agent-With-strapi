@@ -33,6 +33,7 @@ class AgentState(TypedDict):
     intent_category: str
     ddl_operation: str
     operation: str
+    modify_operation: Dict[str, Any]  # structured target context from ModifySchemaAgent
     dml_operation: str
     conversation_history: List[Dict[str, str]]
     field_registry: Dict[str, Any]

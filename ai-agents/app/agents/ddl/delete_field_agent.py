@@ -17,21 +17,26 @@ async def delete_field_agent(state: AgentState) -> AgentState:
     llm = ChatOpenAI(model="gpt-4o", temperature=0)
 
     user_input = state.get("user_input", "")
-    raw_schema = state.get("schema_data") or {}
+    modify_op  = state.get("modify_operation") or {}
+    # Always start fresh — never carry previous field state across requests
     current_schema = {
-        "table_name": raw_schema.get("table_name") or None,
-        "field_name": raw_schema.get("field_name") or None,
+        "table_name": modify_op.get("target_table") or None,
+        "field_name": modify_op.get("target_field") or None,
     }
 
-    print(f"[DeleteFieldAgent] user_input : {user_input}")
+    print(f"[DeleteFieldAgent] user_input    : {user_input}")
+    print(f"[DeleteFieldAgent] seeded table  : {current_schema['table_name']}")
+    print(f"[DeleteFieldAgent] seeded field  : {current_schema['field_name']}")
 
     system_prompt = (
-        "You are a Database Field Deletion Specialist.\n\n"
-        "Instructions:\n"
-        "- Extract the TARGET collection name (entity noun: 'product', 'customer', etc.).\n"
-        "- Extract the TARGET field name to be deleted.\n"
-        "- NEVER treat generic words as names: 'collection', 'table', 'field', 'column', 'delete', 'remove'.\n"
-        "- If table_name or field_name cannot be clearly identified, set to null.\n\n"
+        "You are a strict database schema modification agent.\n\n"
+        "Extract ONLY the field deletion information the user explicitly requested.\n\n"
+        "CRITICAL RULES:\n"
+        "1. Extract the TARGET collection name (entity noun: 'product', 'customer', etc.).\n"
+        "   NEVER use: 'collection', 'table', 'field', 'column', 'delete', 'remove' as names.\n"
+        "2. Extract the TARGET field name to delete.\n"
+        "   NEVER use: 'column', 'field', 'delete', 'remove' as field names.\n"
+        "3. If table_name or field_name cannot be clearly identified, set to null.\n\n"
         "Output ONLY valid JSON:\n"
         '{"extracted_data": {"table_name": <str|null>, "field_name": <str|null>}}'
     )

@@ -5,47 +5,58 @@ from app.agents.ddl.schema_utils import maybe_reset_schema
 import json
 
 
+_ALLOWED_UPDATE_KEYS = frozenset({
+    "default", "required", "unique", "min", "max",
+    "enum", "new_name", "private", "searchable"
+})
+
+
 async def update_field_agent(state: AgentState) -> AgentState:
     """
     UpdateFieldAgent: modifies settings of an existing field in a collection.
-    Examples: make price required, make email unique, rename field price to product_price.
 
     Routes → interaction_planner (missing info) or → query_builder (complete).
+
+    Key design rule: `updates` is ALWAYS reset to {} at the start of each call.
+    Previous updates are NEVER carried forward — this prevents cross-request leakage.
     """
     print("\n----- ENTERING UpdateFieldAgent -----")
 
-    llm = ChatOpenAI(model="gpt-4o", temperature=0)
-
+    llm        = ChatOpenAI(model="gpt-4o", temperature=0)
     user_input = state.get("user_input", "")
-    raw_schema = state.get("schema_data") or {}
+
+    # Seed from ModifySchemaAgent's pre-extracted context if available
+    modify_op   = state.get("modify_operation") or {}
+    raw_schema  = state.get("schema_data") or {}
+
+    # CRITICAL: never carry forward the old updates dict — start fresh every call
     current_schema = {
-        "table_name": raw_schema.get("table_name") or None,
-        "field_name": raw_schema.get("field_name") or None,
-        "updates":    raw_schema.get("updates") or {},
+        "table_name": modify_op.get("target_table") or raw_schema.get("table_name") or None,
+        "field_name": modify_op.get("target_field") or raw_schema.get("field_name") or None,
+        "updates":    {},   # always empty — prevents cross-request leakage
     }
 
-    print(f"[UpdateFieldAgent] user_input : {user_input}")
+    print(f"[UpdateFieldAgent] user_input    : {user_input}")
+    print(f"[UpdateFieldAgent] seeded table  : {current_schema['table_name']}")
+    print(f"[UpdateFieldAgent] seeded field  : {current_schema['field_name']}")
 
     system_prompt = (
         "You are a strict database schema modification agent.\n\n"
-        "Your task is to extract field updates from the user's request.\n\n"
+        "Your task: extract ONLY the field update the user explicitly requested.\n\n"
         "CRITICAL RULES:\n"
-        "1. NEVER add settings the user did NOT explicitly mention.\n"
-        "2. NEVER infer or assume constraints such as unique, required, min, max, "
-        "private, searchable, configurable unless the user explicitly requested them.\n"
-        "3. If the user asks to set a default value → return ONLY {'default': <value>}.\n"
-        "4. If the user asks to make a field required → return ONLY {'required': true}.\n"
-        "5. If the user asks to make a field unique → return ONLY {'unique': true}.\n"
-        "6. For rename requests → return ONLY {'new_name': '<new_name>'}.\n"
-        "7. Do NOT combine multiple settings automatically.\n\n"
-        "Example — correct:\n"
-        "  User: set default value of rating to 5.0\n"
-        "  Output updates: {\"default\": 5.0}\n\n"
-        "Example — WRONG (never do this):\n"
-        "  Output updates: {\"default\": 5.0, \"unique\": true}\n\n"
-        "- Extract the TARGET collection name (entity noun: 'product', 'customer', etc.).\n"
-        "- Extract the TARGET field name to be updated.\n"
-        "- If table_name, field_name, or updates cannot be determined, set to null/empty.\n\n"
+        "1. NEVER add settings the user did NOT mention.\n"
+        "2. NEVER infer or assume unique, required, min, max, private, searchable, configurable.\n"
+        "3. set default value → return ONLY {\"default\": <value>}\n"
+        "4. make required     → return ONLY {\"required\": true}\n"
+        "5. make unique       → return ONLY {\"unique\": true}\n"
+        "6. rename field      → return ONLY {\"new_name\": \"<new_name>\"}\n"
+        "7. NEVER combine multiple updates unless the user explicitly requested both.\n\n"
+        "Examples (correct):\n"
+        "  'set default value of rating to 5'           → updates: {\"default\": 5}\n"
+        "  'rename column email to email_address'       → updates: {\"new_name\": \"email_address\"}\n"
+        "  'make price required'                        → updates: {\"required\": true}\n\n"
+        "Examples (WRONG — never do this):\n"
+        "  'set default value of rating to 5'           → updates: {\"default\": 5, \"unique\": true}\n\n"
         "Output ONLY valid JSON:\n"
         '{"extracted_data": {"table_name": <str|null>, "field_name": <str|null>, "updates": {}}}'
     )
@@ -56,30 +67,29 @@ async def update_field_agent(state: AgentState) -> AgentState:
     ])
 
     try:
-        clean     = response.content.replace("```json", "").replace("```", "").strip()
+        clean = response.content.replace("```json", "").replace("```", "").strip()
+        print(f"[UpdateFieldAgent] LLM raw: {clean}")
         extracted = json.loads(clean).get("extracted_data", {})
 
         new_table_name = extracted.get("table_name")
         if new_table_name:
             maybe_reset_schema(state, new_table_name)
             current_schema["table_name"] = new_table_name
+
         if extracted.get("field_name"):
             current_schema["field_name"] = extracted["field_name"]
+
         if extracted.get("updates"):
-            # Allowlist filter — only store keys the LLM explicitly returned.
-            # This prevents hallucinated constraints from sneaking through.
-            _ALLOWED_UPDATE_KEYS = {
-                "default", "required", "unique", "min", "max",
-                "enum", "new_name", "private", "searchable"
-            }
+            # Allowlist filter — drop any key the LLM invented outside the permitted set
             safe_updates = {
                 k: v for k, v in extracted["updates"].items()
                 if k in _ALLOWED_UPDATE_KEYS
             }
-            current_schema["updates"] = {**current_schema["updates"], **safe_updates}
             if len(safe_updates) != len(extracted["updates"]):
                 dropped = set(extracted["updates"]) - set(safe_updates)
                 print(f"[UpdateFieldAgent] Dropped non-allowed keys: {dropped}")
+            # Replace updates entirely — never merge with old state
+            current_schema["updates"] = safe_updates
 
         state["schema_data"] = current_schema
 
@@ -90,7 +100,7 @@ async def update_field_agent(state: AgentState) -> AgentState:
         if not current_schema.get("field_name"):
             missing.append("field_name")
         if not current_schema.get("updates"):
-            missing.append("update_action (e.g. required, unique, new_name)")
+            missing.append("update_action (e.g. required, unique, new_name, default)")
 
         state["missing_fields"] = missing
 

@@ -20,7 +20,7 @@ async def execution_agent(state: AgentState) -> AgentState:
     print("\n----- ENTERING ExecutionAgent -----")
 
     payload   = state.get("strapi_payload")
-    operation = state.get("operation") or "create_collection"
+    operation = state.get("operation")
 
     if not payload:
         state["execution_error"] = "No Strapi payload available for execution."

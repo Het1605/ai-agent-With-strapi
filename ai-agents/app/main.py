@@ -57,6 +57,7 @@ async def chat_endpoint(request: ChatRequest):
         "intent_category": "",
         "ddl_operation": "",
         "dml_operation": "",
+        "modify_operation": {},
         "operation": "",
         "conversation_history": [],
         "field_registry": {},

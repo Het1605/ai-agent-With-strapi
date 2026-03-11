@@ -71,7 +71,7 @@
     "discount": {
       "type": "decimal",
       "unique": true,
-      "required": false,
+      "required": true,
       "default": 14
     },
     "joining_date": {

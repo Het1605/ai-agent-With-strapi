@@ -30,13 +30,16 @@ async def add_column_agent(state: AgentState) -> AgentState:
 
     user_input     = state.get("user_input", "")
     field_registry = state.get("field_registry", {})
+    modify_op      = state.get("modify_operation") or {}
     raw_schema     = state.get("schema_data") or {}
     current_schema = {
-        "table_name": raw_schema.get("table_name") or None,
+        # Seed from ModifySchemaAgent's pre-extraction if available
+        "table_name": modify_op.get("target_table") or raw_schema.get("table_name") or None,
         "columns":    list(raw_schema.get("columns") or [])
     }
 
-    print(f"[AddColumnAgent] user_input : {user_input}")
+    print(f"[AddColumnAgent] user_input    : {user_input}")
+    print(f"[AddColumnAgent] seeded table  : {current_schema['table_name']}")
 
     system_prompt = (
         "You are a Database Field Extraction Specialist.\n\n"

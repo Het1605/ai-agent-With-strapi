@@ -18,26 +18,26 @@ async def update_collection_agent(state: AgentState) -> AgentState:
 
     llm = ChatOpenAI(model="gpt-4o", temperature=0)
 
-    user_input = state.get("user_input", "")
-    raw_schema = state.get("schema_data") or {}
+    user_input  = state.get("user_input", "")
+    modify_op   = state.get("modify_operation") or {}
+    # Always start fresh — do not carry previous schema_data for collection ops
     current_schema = {
-        "table_name": raw_schema.get("table_name") or None,
+        "table_name": modify_op.get("target_table") or None,
     }
 
-    print(f"[UpdateCollectionAgent] user_input : {user_input}")
+    print(f"[UpdateCollectionAgent] user_input    : {user_input}")
+    print(f"[UpdateCollectionAgent] seeded table  : {current_schema['table_name']}")
 
     system_prompt = (
-        "You are a Collection Settings Specialist in a multi-agent database system.\n\n"
-        "Your job is to extract the intent for a collection-level modification.\n\n"
-        "Supported intents:\n"
-        "1. DELETE collection — user says 'delete collection X', 'drop table X', 'remove collection X'\n"
-        "2. RENAME / UPDATE displayName — user says 'rename X to Y', 'update display name of X to Y'\n\n"
-        "Instructions:\n"
-        "- Extract the TARGET collection name (entity noun: 'product', 'order', etc.).\n"
-        "- NEVER treat generic words as names: 'collection', 'table', 'the', 'rename', 'delete'.\n"
-        "- If no collection name found, set table_name to null.\n"
-        "- If delete intent: set delete to true.\n"
-        "- If rename intent: set new_display_name to the new name.\n\n"
+        "You are a strict database schema modification agent.\n\n"
+        "Extract ONLY the collection-level operation the user explicitly requested.\n\n"
+        "CRITICAL RULES:\n"
+        "1. NEVER add settings the user did not mention.\n"
+        "2. Extract the TARGET collection name (entity noun only: 'product', 'order', etc.)\n"
+        "   NEVER use: 'collection', 'table', 'the', 'rename', 'delete' as the name.\n"
+        "3. If user says 'delete collection X', 'drop table X', 'remove collection X' → set delete: true.\n"
+        "4. If user says 'rename X to Y', 'update display name of X to Y' → set new_display_name to Y.\n"
+        "5. If collection name cannot be identified, set table_name to null.\n\n"
         "Output ONLY valid JSON:\n"
         '{"extracted_data": {"table_name": <str|null>, "delete": <bool>, "new_display_name": <str|null>}}'
     )
@@ -49,6 +49,7 @@ async def update_collection_agent(state: AgentState) -> AgentState:
 
     try:
         clean     = response.content.replace("```json", "").replace("```", "").strip()
+        print("Clean",clean)
         extracted = json.loads(clean).get("extracted_data", {})
 
         new_table_name = extracted.get("table_name")

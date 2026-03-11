@@ -4,7 +4,8 @@
   "info": {
     "singularName": "product",
     "pluralName": "products",
-    "displayName": "Products"
+    "displayName": "Product Catalog",
+    "description": ""
   },
   "options": {},
   "attributes": {
@@ -62,17 +63,9 @@
     "updatedAt": {
       "type": "datetime"
     },
-    "price": {
-      "type": "decimal",
-      "default": 0,
-      "new_name": "product_price"
-    },
     "stock": {
       "type": "integer",
       "default": 0
-    },
-    "description": {
-      "type": "text"
     },
     "rating": {
       "type": "decimal",
