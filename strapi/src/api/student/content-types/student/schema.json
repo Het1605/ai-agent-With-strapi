@@ -23,13 +23,13 @@
       "required": true,
       "unique": true
     },
-    "enrollment_number": {
-      "type": "string",
-      "required": true,
-      "unique": true
-    },
     "date_of_birth": {
       "type": "date",
+      "required": true,
+      "unique": false
+    },
+    "enrollment_date": {
+      "type": "datetime",
       "required": true,
       "unique": false
     }

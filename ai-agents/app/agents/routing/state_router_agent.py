@@ -5,7 +5,7 @@ import json
 
 # Valid routes StateRouterAgent may produce.
 # NOTE: intent_router is intentionally EXCLUDED — it must only run after
-# TaskPlannerAgent has executed. StateRouterAgent never bypasses the planner.
+# classification has resolved the scope.
 VALID_ROUTES = {
     "create_table", "modify_schema",
     "add_column", "update_collection", "update_field", "delete_field",
@@ -21,7 +21,7 @@ async def state_router_agent(state: AgentState) -> AgentState:
        → Resume the active DDL sub-agent directly (preserves mid-turn state).
     2. Otherwise
        → Route to 'validation' so the full pipeline runs:
-         validation → classifier → planner → intent_router → ddl/dml_router
+         validation → classifier → intent_router → ddl/dml_router
     """
     print("\n----- ENTERING StateRouterAgent -----")
 
@@ -40,9 +40,9 @@ async def state_router_agent(state: AgentState) -> AgentState:
         "   This resumes a paused multi-turn conversation (e.g. waiting for a missing table name).\n"
         "2. Otherwise → route to 'validation'.\n"
         "   This starts/continues the normal request pipeline:\n"
-        "   validation → classifier → planner → intent_router → ddl/dml_router.\n\n"
+        "   validation → classifier → intent_router → ddl/dml_router.\n\n"
         "IMPORTANT: NEVER route to 'intent_router' directly.\n"
-        "IntentRouterAgent must only run AFTER TaskPlannerAgent.\n\n"
+        "IntentRouterAgent must only run AFTER ScopeClassifierAgent.\n\n"
         f"ALLOWED ROUTES: {sorted(VALID_ROUTES)}\n\n"
         "Respond ONLY with valid JSON: {\"route\": \"<chosen_route>\"}\n"
         "Do NOT add explanation. Output ONLY the JSON."

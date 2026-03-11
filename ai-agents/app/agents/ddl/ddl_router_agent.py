@@ -30,7 +30,7 @@ async def ddl_router_agent(state: AgentState) -> AgentState:
 
     task_type = current_task.get("task_type", "")
 
-    # ── Deterministic fast-path: task_type already set by TaskPlannerAgent ──
+    # ── Deterministic fast-path: task_type already set ──
     if task_type in _VALID_DDL_OPS:
         state["ddl_operation"] = task_type
         print(f"DDLRouterAgent: Deterministic route → {task_type}")

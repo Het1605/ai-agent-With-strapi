@@ -5,7 +5,6 @@ from app.agents.validation.input_validation_agent import input_validation_agent
 from app.agents.classifier.scope_classifier_agent import scope_classifier_agent
 from app.agents.conversation.conversation_agent import conversation_agent
 from app.agents.conversation.general_qa_agent import general_qa_agent
-from app.agents.planner.task_planner_agent import task_planner_agent
 from app.agents.planner.intent_router_agent import intent_router_agent
 from app.agents.ddl.ddl_router_agent import ddl_router_agent
 from app.agents.dml.dml_router_agent import dml_router_agent
@@ -38,7 +37,7 @@ def router_scope(state: AgentState):
     if scope == "conversation":
         return "conversation"
     elif scope == "database":
-        return "planner"
+        return "intent_router"
     else:
         return "general_qa"
 
@@ -116,7 +115,6 @@ def create_workflow():
     workflow.add_node("classifier", scope_classifier_agent)
     workflow.add_node("conversation", conversation_agent)
     workflow.add_node("general_qa", general_qa_agent)
-    workflow.add_node("planner", task_planner_agent)
     workflow.add_node("intent_router", intent_router_agent)
     workflow.add_node("ddl_router", ddl_router_agent)
     workflow.add_node("dml_router", dml_router_agent)
@@ -174,12 +172,11 @@ def create_workflow():
         {
             "conversation": "conversation",
             "general_qa": "general_qa",
-            "planner": "planner"
+            "intent_router": "intent_router"
         }
     )
     
     # Database Operations Phase
-    workflow.add_edge("planner", "intent_router")
     
     workflow.add_conditional_edges(
         "intent_router",

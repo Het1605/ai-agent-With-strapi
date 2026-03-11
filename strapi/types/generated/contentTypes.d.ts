@@ -430,152 +430,6 @@ export interface AdminUser extends Struct.CollectionTypeSchema {
   };
 }
 
-export interface ApiDepartmentDepartment extends Struct.CollectionTypeSchema {
-  collectionName: 'departments';
-  info: {
-    displayName: 'Departments';
-    pluralName: 'departments';
-    singularName: 'department';
-  };
-  options: {
-    draftAndPublish: false;
-  };
-  attributes: {
-    createdAt: Schema.Attribute.DateTime;
-    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-    department_code: Schema.Attribute.String &
-      Schema.Attribute.Required &
-      Schema.Attribute.Unique;
-    department_name: Schema.Attribute.String &
-      Schema.Attribute.Required &
-      Schema.Attribute.Unique;
-    locale: Schema.Attribute.String & Schema.Attribute.Private;
-    localizations: Schema.Attribute.Relation<
-      'oneToMany',
-      'api::department.department'
-    > &
-      Schema.Attribute.Private;
-    publishedAt: Schema.Attribute.DateTime;
-    updatedAt: Schema.Attribute.DateTime;
-    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-  };
-}
-
-export interface ApiEmployeeLeaveEmployeeLeave
-  extends Struct.CollectionTypeSchema {
-  collectionName: 'employee_leaves';
-  info: {
-    displayName: 'Employee-leaves';
-    pluralName: 'employee-leaves';
-    singularName: 'employee-leave';
-  };
-  options: {
-    draftAndPublish: false;
-  };
-  attributes: {
-    approved: Schema.Attribute.Boolean &
-      Schema.Attribute.Required &
-      Schema.Attribute.DefaultTo<false>;
-    createdAt: Schema.Attribute.DateTime;
-    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-    employee: Schema.Attribute.Relation<'manyToOne', 'api::employee.employee'> &
-      Schema.Attribute.Required;
-    end_date: Schema.Attribute.Date & Schema.Attribute.Required;
-    leave_type: Schema.Attribute.String & Schema.Attribute.Required;
-    locale: Schema.Attribute.String & Schema.Attribute.Private;
-    localizations: Schema.Attribute.Relation<
-      'oneToMany',
-      'api::employee-leave.employee-leave'
-    > &
-      Schema.Attribute.Private;
-    publishedAt: Schema.Attribute.DateTime;
-    reason: Schema.Attribute.Text;
-    start_date: Schema.Attribute.Date & Schema.Attribute.Required;
-    updatedAt: Schema.Attribute.DateTime;
-    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-  };
-}
-
-export interface ApiEmployeeEmployee extends Struct.CollectionTypeSchema {
-  collectionName: 'employees';
-  info: {
-    displayName: 'Employees';
-    pluralName: 'employees';
-    singularName: 'employee';
-  };
-  options: {
-    draftAndPublish: false;
-  };
-  attributes: {
-    createdAt: Schema.Attribute.DateTime;
-    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-    email: Schema.Attribute.Email &
-      Schema.Attribute.Required &
-      Schema.Attribute.Unique;
-    first_name: Schema.Attribute.String & Schema.Attribute.Required;
-    hire_date: Schema.Attribute.DateTime & Schema.Attribute.Required;
-    is_active: Schema.Attribute.Boolean &
-      Schema.Attribute.Required &
-      Schema.Attribute.DefaultTo<true>;
-    last_name: Schema.Attribute.String & Schema.Attribute.Required;
-    locale: Schema.Attribute.String & Schema.Attribute.Private;
-    localizations: Schema.Attribute.Relation<
-      'oneToMany',
-      'api::employee.employee'
-    > &
-      Schema.Attribute.Private;
-    phone_number: Schema.Attribute.String;
-    position: Schema.Attribute.String & Schema.Attribute.Required;
-    publishedAt: Schema.Attribute.DateTime;
-    salary: Schema.Attribute.Decimal & Schema.Attribute.Required;
-    updatedAt: Schema.Attribute.DateTime;
-    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-  };
-}
-
-export interface ApiRestaurantRestaurant extends Struct.CollectionTypeSchema {
-  collectionName: 'restaurants';
-  info: {
-    displayName: 'Restaurants';
-    pluralName: 'restaurants';
-    singularName: 'restaurant';
-  };
-  options: {
-    draftAndPublish: false;
-  };
-  attributes: {
-    address: Schema.Attribute.String & Schema.Attribute.Required;
-    createdAt: Schema.Attribute.DateTime;
-    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-    email: Schema.Attribute.Email &
-      Schema.Attribute.Required &
-      Schema.Attribute.Unique;
-    locale: Schema.Attribute.String & Schema.Attribute.Private;
-    localizations: Schema.Attribute.Relation<
-      'oneToMany',
-      'api::restaurant.restaurant'
-    > &
-      Schema.Attribute.Private;
-    name: Schema.Attribute.String &
-      Schema.Attribute.Required &
-      Schema.Attribute.Unique;
-    phone_number: Schema.Attribute.String &
-      Schema.Attribute.Required &
-      Schema.Attribute.Unique;
-    publishedAt: Schema.Attribute.DateTime;
-    updatedAt: Schema.Attribute.DateTime;
-    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-  };
-}
-
 export interface ApiStudentStudent extends Struct.CollectionTypeSchema {
   collectionName: 'students';
   info: {
@@ -594,9 +448,7 @@ export interface ApiStudentStudent extends Struct.CollectionTypeSchema {
     email: Schema.Attribute.Email &
       Schema.Attribute.Required &
       Schema.Attribute.Unique;
-    enrollment_number: Schema.Attribute.String &
-      Schema.Attribute.Required &
-      Schema.Attribute.Unique;
+    enrollment_date: Schema.Attribute.DateTime & Schema.Attribute.Required;
     first_name: Schema.Attribute.String & Schema.Attribute.Required;
     last_name: Schema.Attribute.String & Schema.Attribute.Required;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
@@ -1123,10 +975,6 @@ declare module '@strapi/strapi' {
       'admin::transfer-token': AdminTransferToken;
       'admin::transfer-token-permission': AdminTransferTokenPermission;
       'admin::user': AdminUser;
-      'api::department.department': ApiDepartmentDepartment;
-      'api::employee-leave.employee-leave': ApiEmployeeLeaveEmployeeLeave;
-      'api::employee.employee': ApiEmployeeEmployee;
-      'api::restaurant.restaurant': ApiRestaurantRestaurant;
       'api::student.student': ApiStudentStudent;
       'plugin::content-releases.release': PluginContentReleasesRelease;
       'plugin::content-releases.release-action': PluginContentReleasesReleaseAction;
