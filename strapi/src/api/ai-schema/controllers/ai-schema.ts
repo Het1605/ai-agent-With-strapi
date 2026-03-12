@@ -61,16 +61,19 @@ const mapFieldToStrapiAttribute = (field: any) => {
 
 export default {
     async createCollection(ctx: any) {
-        const { collectionName, fields } = ctx.request.body;
+        const { collectionName, singularName, pluralName, displayName, fields } = ctx.request.body;
 
-        if (!collectionName) {
-            return ctx.badRequest('collectionName is required');
+        if (!collectionName || !singularName || !pluralName) {
+            return ctx.badRequest('collectionName, singularName, and pluralName are required');
         }
 
-        const singularName = collectionName.toLowerCase().replace(/s$/, ''); // Basic singularization
-        const pluralName = collectionName.toLowerCase();
-        const displayName = collectionName.charAt(0).toUpperCase() + collectionName.slice(1);
-        const uid = `api::${singularName}.${singularName}`;
+        // Use the exact names provided by the Python Lean Agent
+        const actualSingular = singularName.toLowerCase();
+        const actualPlural = pluralName.toLowerCase();
+        const actualDisplayName = displayName || (collectionName.charAt(0).toUpperCase() + collectionName.slice(1));
+        
+        // UID format: api::singular.singular
+        const uid = `api::${actualSingular}.${actualSingular}`;
 
         // Check if it already exists to avoid 500 errors
         // @ts-ignore
@@ -79,7 +82,6 @@ export default {
         }
 
         const attributes: any = {};
-
         for (const field of fields) {
             attributes[field.name] = mapFieldToStrapiAttribute(field);
         }
@@ -91,9 +93,9 @@ export default {
             // Strapi v5 createContentType expects an object with contentType and components
             const result = await contentTypeService.createContentType({
                 contentType: {
-                    displayName,
-                    singularName,
-                    pluralName,
+                    displayName: actualDisplayName,
+                    singularName: actualSingular,
+                    pluralName: actualPlural,
                     kind: 'collectionType',
                     attributes,
                 },
@@ -131,8 +133,8 @@ export default {
             return ctx.badRequest('"collection" is required');
         }
 
-        // ── Resolve UID (same rule as createCollection) ───────────────
-        const singularName = collection.toLowerCase().replace(/s$/, '');
+        // Use the exact singular name provided by the Python side (Lean Agent)
+        const singularName = collection.toLowerCase();
         const uid = `api::${singularName}.${singularName}`;
 
         // @ts-ignore
