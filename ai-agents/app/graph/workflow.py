@@ -1,4 +1,5 @@
 from langgraph.graph import StateGraph, END
+from langgraph.checkpoint.memory import MemorySaver
 from app.graph.state import AgentState
 from app.agents.supervisor.supervisor_agent import supervisor_agent
 from app.agents.validation.input_validation_agent import input_validation_agent
@@ -246,4 +247,4 @@ def create_workflow():
     # Final Exit
     workflow.add_edge("formatter", END)
     
-    return workflow.compile()
+    return workflow.compile(checkpointer=MemorySaver())

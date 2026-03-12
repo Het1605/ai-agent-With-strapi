@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from app.graph.workflow import create_workflow
+from langgraph.types import Command
 
 app = FastAPI()
 
@@ -88,8 +89,22 @@ async def chat_endpoint(request: ChatRequest):
     state["debug_info"] = ""
     
     try:
-        # Run the workflow asynchronously using ainvoke
-        final_state = await app_workflow.ainvoke(state)
+        # Create execution config with persistent thread_id for resumption
+        config = {"configurable": {"thread_id": session_id}}
+        
+        # 1. Check if we have an active, interrupted thread
+        current_state = await app_workflow.aget_state(config)
+        
+        if current_state.next:
+            # RESUMPTION MODE: The graph is paused at an interrupt node.
+            # We provide the message as the 'resume' value for the active interrupt.
+            print(f"--- RESUMING Thread {session_id} at {current_state.next} ---")
+            final_state = await app_workflow.ainvoke(Command(resume=request.message), config=config)
+        else:
+            # INITIAL/NEW MODE: No active interrupt. Start fresh or start new turn.
+            print(f"--- STARTING NEW Execution Turn for Thread {session_id} ---")
+            final_state = await app_workflow.ainvoke(state, config=config)
+            
         SESSIONS[session_id] = final_state
         return {"response": final_state.get("response", "I encountered an error while processing your request.")}
     except Exception as e:
