@@ -84,23 +84,6 @@ def router_modify_schema_operation(state: AgentState):
     print(f"[router_modify_schema_operation] Routing to '{op}'")
     return op
 
-def router_state_decision(state: AgentState):
-    """
-    Reads the route decision written by StateRouterAgent and returns the
-    target node name for LangGraph's conditional edge dispatcher.
-    Falls back to 'validation' if the field is missing or unrecognised.
-    """
-    decision = state.get("route_decision", "validation")
-    allowed = {
-        "create_table", "modify_schema",
-        "add_column", "update_collection", "update_field", "delete_field",
-        "validation"
-    }
-    if decision not in allowed:
-        print(f"[router_state_decision] Unexpected decision '{decision}' — defaulting to 'validation'.")
-        return "validation"
-    print(f"[router_state_decision] Dispatching to '{decision}'")
-    return decision
 
 def create_workflow():
     """
@@ -134,26 +117,8 @@ def create_workflow():
     workflow.set_entry_point("supervisor")
     workflow.add_edge("supervisor", "memory")
 
-    # MemoryManager → StateRouterAgent (LLM-based decision)
-    # StateRouterAgent only routes to:
-    #   • an active DDL sub-agent   (when interaction_phase == True)
-    #   • validation                (fresh request — let full pipeline run)
-    # It NEVER routes to intent_router (IntentRouterAgent must only run
-    # after TaskPlannerAgent has built the task queue).
-    workflow.add_edge("memory", "state_router")
-    workflow.add_conditional_edges(
-        "state_router",
-        router_state_decision,
-        {
-            "create_table":       "create_table",
-            "modify_schema":      "modify_schema",
-            "add_column":         "add_column",
-            "update_collection":  "update_collection",
-            "update_field":       "update_field",
-            "delete_field":       "delete_field",
-            "validation":         "validation",
-        }
-    )
+    # MemoryManager → validation
+    workflow.add_edge("memory", "validation")
 
     
     # Scoping Phase
