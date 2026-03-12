@@ -50,5 +50,9 @@ class AgentState(TypedDict):
     interaction_complete: bool
     route_decision: Optional[str]
     memory: Dict[str, Any]
+    schema_plan: Dict[str, Any]
+    interaction_message: str
+    approval_status: str  # APPROVE, MODIFY, INVALID
+    user_input: str
     messages: Annotated[List[Any], operator.add]
    

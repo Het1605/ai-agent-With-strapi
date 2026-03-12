@@ -19,6 +19,12 @@ from app.agents.query.query_builder_agent import query_builder_agent
 from app.agents.execution.execution_agent import execution_agent
 from app.agents.response.response_formatter_agent import response_formatter_agent
 from app.agents.routing.state_router_agent import state_router_agent
+from app.agents.ddl.schema_review_agent import schema_review_agent
+from app.agents.ddl.schema_visualization_agent import schema_visualization_agent
+from app.agents.interaction.user_approval_agent import user_approval_agent
+from app.agents.interaction.user_reprompt_agent import user_reprompt_agent
+from app.agents.routing.approval_decision_router import approval_decision_router
+from app.agents.ddl.schema_execution_planner_agent import schema_execution_planner_agent
 from app.memory.memory_manager import memory_manager
 
 def router_validation(state: AgentState):
@@ -112,6 +118,12 @@ def create_workflow():
     workflow.add_node("execution", execution_agent)
     workflow.add_node("formatter", response_formatter_agent)
     workflow.add_node("state_router", state_router_agent)
+    workflow.add_node("schema_review", schema_review_agent)
+    workflow.add_node("schema_visualization", schema_visualization_agent)
+    workflow.add_node("user_approval", user_approval_agent)
+    workflow.add_node("user_reprompt", user_reprompt_agent)
+    workflow.add_node("approval_decision", approval_decision_router)
+    workflow.add_node("schema_execution_planner", schema_execution_planner_agent)
     
     # Entrance
     workflow.set_entry_point("supervisor")
@@ -164,8 +176,37 @@ def create_workflow():
         }
     )
 
-    # CreateTableAgent is now autonomous; always goes to query_builder
-    workflow.add_edge("create_table", "query_builder")
+    # CreateTableAgent -> Review -> Visualization -> Approval (Interrupt)
+    workflow.add_edge("create_table", "schema_review")
+    workflow.add_edge("schema_review", "schema_visualization")
+    workflow.add_edge("schema_visualization", "user_approval")
+    
+    # After HIB Interrupt resumes:
+    workflow.add_edge("user_approval", "approval_decision")
+    
+    # Approval Decision Router Branches:
+    def router_approval_decision(state: AgentState):
+        status = state.get("approval_status", "INVALID")
+        if status == "APPROVE":
+            return "schema_execution_planner"
+        elif status == "MODIFY":
+            return "create_table"
+        else:
+            return "user_reprompt" # Use the reprompter to set response then pause
+
+    workflow.add_conditional_edges(
+        "approval_decision",
+        router_approval_decision,
+        {
+            "schema_execution_planner": "schema_execution_planner",
+            "create_table": "create_table",
+            "user_reprompt": "user_reprompt"
+        }
+    )
+
+    workflow.add_edge("user_reprompt", "user_approval")
+
+    workflow.add_edge("schema_execution_planner", "query_builder")
 
     # ModifySchemaAgent (classifier) routes to one of the 4 sub-agents
     workflow.add_conditional_edges(

@@ -131,13 +131,14 @@ async def create_table_agent(state: AgentState) -> AgentState:
                     col["target"] = uid
                     print(f"[RelationResolver] {table['table_name']}.{col['name']} -> {uid}")
 
-        state["schema_data"] = {"tables": tables}
-        state["schema_ready"]         = True
-        state["interaction_phase"]    = False
-        state["active_agent"]         = None
-        state["interaction_attempts"] = 0
-
-        print(f"[CreateTableAgent] Successfully designed {len(tables)} table(s).")
+        state["schema_plan"] = {"tables": tables}
+        
+        # We no longer set schema_ready=True here.
+        # The schema MUST pass through Review, Visualization, and Approval first.
+        state["schema_ready"]         = False
+        state["interaction_phase"]    = False 
+        
+        print(f"[CreateTableAgent] Successfully designed {len(tables)} table(s). Saved to schema_plan.")
 
     except Exception as e:
         print(f"[CreateTableAgent] Design Error: {e}")
