@@ -194,7 +194,7 @@ def create_workflow():
         if status == "APPROVE":
             return "schema_execution_planner"
         elif status == "MODIFY":
-            return "schema_designer"
+            return "planning"
         else:
             return "user_reprompt" # Use the reprompter to set response then pause
 
@@ -203,7 +203,7 @@ def create_workflow():
         router_approval_decision,
         {
             "schema_execution_planner": "schema_execution_planner",
-            "schema_designer": "schema_designer",
+            "planning": "planning",
             "user_reprompt": "user_reprompt"
         }
     )

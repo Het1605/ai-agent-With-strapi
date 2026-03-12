@@ -13,18 +13,21 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
     llm = ChatOpenAI(model="gpt-4o", temperature=0)
     plan = state.get("architecture_plan", {})
     field_registry = state.get("field_registry", {})
-    user_input = state.get("user_input", "") # For iterative modifications
+    history = state.get("conversation_history", [])
+    previous_schema = state.get("schema_plan", {})
+    user_modification = state.get("user_input", "") # For iterative modifications
     
     system_prompt = (
         "You are a Senior Database Architect designing a production-grade database schema.\n\n"
 
-        "Your task is to convert the architecture plan into a detailed database schema.\n\n"
+        "Your task is to convert the architecture plan into a detailed database schema. "
+        "If this is a REVISION, refer to the 'Previous Schema Plan' and 'Conversation History' to ensure consistency while applying the new architectural changes.\n\n"
 
         "Your schemas must follow REAL-WORLD database design practices.\n\n"
 
         "DESIGN PRINCIPLES:\n"
 
-        "1. Each table should normally contain 6–10 realistic business columns unless the entity is very simple.\n"
+        "1. Each table should normally contain 8–10 realistic business columns unless the entity is very simple.also consider more column if needed\n"
         "2. Include meaningful business fields.\n"
         "3. Include reference fields for relations.\n"
         "4. Include status fields where appropriate.\n"
@@ -63,10 +66,13 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
         "Respond ONLY with valid JSON."
     )
             
+    history_str = "\n".join([f"{m['role']}: {m['content']}" for m in history[-5:]])
     human_msg = (
-        f"Architecture Plan: {json.dumps(plan)}\n"
-        f"Available Field Registry: {json.dumps(field_registry)}\n"
-        f"User Modification Request (if any): {user_input}"
+        f"Conversation History:\n{history_str}\n\n"
+        f"Current Architecture Plan: {json.dumps(plan)}\n"
+        f"Previous Schema Plan: {json.dumps(previous_schema)}\n"
+        f"User Modification Request: {user_modification}\n"
+        f"Available Field Registry: {json.dumps(field_registry)}"
     )
     
     response = await llm.ainvoke([

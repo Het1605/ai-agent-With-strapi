@@ -13,14 +13,23 @@ async def planning_agent(state: AgentState) -> AgentState:
     llm = ChatOpenAI(model="gpt-4o", temperature=0)
     reqs = state.get("requirements", {})
     field_registry = state.get("field_registry", {})
+    history = state.get("conversation_history", [])
+    previous_plan = state.get("architecture_plan", {})
+    user_modification = state.get("user_input", "") # The latest feedback
     
     system_prompt = (
         "You are a world-class Database Architect.\n\n"
 
-        "Your job is to design the conceptual architecture of a database system.\n"
+        "Your job is to design or REVISE the conceptual architecture of a database system.\n"
         "You must think like an enterprise system designer.\n\n"
 
-        "Based on the requirements, identify:\n"
+        "CONTEXT HANDLING:\n"
+        "- If it is a new design: Identify core modules and entities from scratch.\n"
+        "- If it is a revision: Read the 'Previous Architecture Plan' and 'User Modification Request'.\n"
+        "- If the user provides their own architecture or specific entities, respect and refine them.\n"
+        "- You can extend, merge, or remove modules and entities based on feedback.\n\n"
+
+        "Based on the requirements and history, identify:\n"
         "1. Core business modules\n"
         "2. Core entities inside each module\n"
         "3. Optional modules that enhance the system\n\n"
@@ -32,7 +41,7 @@ async def planning_agent(state: AgentState) -> AgentState:
         "- Include supporting entities such as logs, reviews, transactions, or usage tables where appropriate.\n"
         "- Systems should typically contain 10–30 tables depending on complexity.\n\n"
 
-        "OUTPUT FORMAT:\n"
+        "OUTPUT FORMAT (JSON ONLY):\n"
         "{\n"
         "  \"system_domain\": \"...\",\n"
         "  \"modules\": [\n"
@@ -52,8 +61,12 @@ async def planning_agent(state: AgentState) -> AgentState:
         "Respond ONLY with valid JSON."
     )
     
+    history_str = "\n".join([f"{m['role']}: {m['content']}" for m in history[-5:]])
     human_msg = (
+        f"Conversation History:\n{history_str}\n\n"
         f"Requirements: {json.dumps(reqs)}\n"
+        f"Previous Architecture Plan: {json.dumps(previous_plan)}\n"
+        f"User Modification Request: {user_modification}\n"
         f"Available Field Registry: {json.dumps(field_registry)}"
     )
     
