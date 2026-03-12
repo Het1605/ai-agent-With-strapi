@@ -9,7 +9,9 @@ from app.agents.conversation.general_qa_agent import general_qa_agent
 from app.agents.planner.intent_router_agent import intent_router_agent
 from app.agents.ddl.ddl_router_agent import ddl_router_agent
 from app.agents.dml.dml_router_agent import dml_router_agent
-from app.agents.ddl.create_table_agent import create_table_agent
+from app.agents.ddl.requirement_agent import requirement_agent
+from app.agents.ddl.planning_agent import planning_agent
+from app.agents.ddl.schema_designer_agent import schema_designer_agent
 from app.agents.ddl.modify_schema_agent import modify_schema_agent
 from app.agents.ddl.add_column_agent import add_column_agent
 from app.agents.ddl.update_collection_agent import update_collection_agent
@@ -20,7 +22,6 @@ from app.agents.query.query_builder_agent import query_builder_agent
 from app.agents.execution.execution_agent import execution_agent
 from app.agents.response.response_formatter_agent import response_formatter_agent
 from app.agents.routing.state_router_agent import state_router_agent
-from app.agents.ddl.schema_review_agent import schema_review_agent
 from app.agents.ddl.schema_visualization_agent import schema_visualization_agent
 from app.agents.interaction.user_approval_agent import user_approval_agent
 from app.agents.interaction.user_reprompt_agent import user_reprompt_agent
@@ -76,7 +77,7 @@ def router_ddl_operation(state: AgentState):
     op = state.get("ddl_operation", "DDL_CREATE_TABLE")
     if op == "DDL_MODIFY_SCHEMA":
         return "modify_schema"
-    return "create_table"
+    return "requirement"
 
 def router_modify_schema_operation(state: AgentState):
     """
@@ -108,7 +109,9 @@ def create_workflow():
     workflow.add_node("intent_router", intent_router_agent)
     workflow.add_node("ddl_router", ddl_router_agent)
     workflow.add_node("dml_router", dml_router_agent)
-    workflow.add_node("create_table", create_table_agent)
+    workflow.add_node("requirement", requirement_agent)
+    workflow.add_node("planning", planning_agent)
+    workflow.add_node("schema_designer", schema_designer_agent)
     workflow.add_node("modify_schema", modify_schema_agent)   # classifier/router
     workflow.add_node("add_column", add_column_agent)
     workflow.add_node("update_collection", update_collection_agent)
@@ -119,7 +122,6 @@ def create_workflow():
     workflow.add_node("execution", execution_agent)
     workflow.add_node("formatter", response_formatter_agent)
     workflow.add_node("state_router", state_router_agent)
-    workflow.add_node("schema_review", schema_review_agent)
     workflow.add_node("schema_visualization", schema_visualization_agent)
     workflow.add_node("user_approval", user_approval_agent)
     workflow.add_node("user_reprompt", user_reprompt_agent)
@@ -172,14 +174,15 @@ def create_workflow():
         "ddl_router",
         router_ddl_operation,
         {
-            "create_table":  "create_table",
+            "requirement":  "requirement",
             "modify_schema": "modify_schema",
         }
     )
 
-    # CreateTableAgent -> Review -> Visualization -> Approval (Interrupt)
-    workflow.add_edge("create_table", "schema_review")
-    workflow.add_edge("schema_review", "schema_visualization")
+    # DDL Create Path: Requirement -> Planning -> Designer -> Visualization -> Approval
+    workflow.add_edge("requirement", "planning")
+    workflow.add_edge("planning", "schema_designer")
+    workflow.add_edge("schema_designer", "schema_visualization")
     workflow.add_edge("schema_visualization", "user_approval")
     
     # After HIB Interrupt resumes:
@@ -191,7 +194,7 @@ def create_workflow():
         if status == "APPROVE":
             return "schema_execution_planner"
         elif status == "MODIFY":
-            return "create_table"
+            return "schema_designer"
         else:
             return "user_reprompt" # Use the reprompter to set response then pause
 
@@ -200,7 +203,7 @@ def create_workflow():
         router_approval_decision,
         {
             "schema_execution_planner": "schema_execution_planner",
-            "create_table": "create_table",
+            "schema_designer": "schema_designer",
             "user_reprompt": "user_reprompt"
         }
     )

@@ -13,8 +13,8 @@ async def ddl_router_agent(state: AgentState) -> AgentState:
     Now upgraded to be context-aware (user_input + history).
 
     Supported operations:
-      DDL_CREATE_TABLE  — create a new collection / full database design
-      DDL_MODIFY_SCHEMA — any structural change to an existing collection
+      DDL_CREATE_TABLE  — design new collections/database (routes to RequirementAgent pipeline)
+      DDL_MODIFY_SCHEMA — estrutural changes to existing collections (routes to ModifySchemaAgent)
     """
     print("\n----- ENTERING DDLRouterAgent (Context Aware) -----")
 
@@ -31,18 +31,21 @@ async def ddl_router_agent(state: AgentState) -> AgentState:
     llm = ChatOpenAI(model="gpt-4o", temperature=0)
 
     system_prompt = (
-        "You are a routing agent for database schema operations.\n\n"
-        "The system supports ONLY two DDL operations:\n"
-        "  DDL_CREATE_TABLE\n"
-        "  DDL_MODIFY_SCHEMA\n\n"
-        "Routing Rules:\n"
-        "1. If the user is creating a brand new table or collection → DDL_CREATE_TABLE\n"
-        "   Examples: 'create employee table', 'build database for school', 'design ecommerce'.\n"
-        "2. If the user modifies any existing schema structure → DDL_MODIFY_SCHEMA\n"
-        "   Examples: 'add column', 'remove field', 'rename column', 'change constraints', 'set default', 'delete collection'.\n"
-        "3. Table deletion must be routed as DDL_MODIFY_SCHEMA.\n"
-        "4. If the request references an existing table or column, it is always DDL_MODIFY_SCHEMA.\n"
-        "5. If the user requests a full database design (multiple tables), it is DDL_CREATE_TABLE.\n\n"
+        "You are an expert Routing Agent for Database Schema Operations.\n"
+        "Your task is to classify user requests into exactly one of two supported DDL operations.\n\n"
+        "SUPPORTED OPERATIONS:\n"
+        "1. DDL_CREATE_TABLE: Use this for brand new database or table design tasks.\n"
+        "   - This routes to the RequirementAgent → PlanningAgent → SchemaDesignerAgent pipeline.\n"
+        "   - Use this for any 'design', 'build', or 'new' creation requests.\n"
+        "   - Examples: 'create employee table', 'create new collection order', 'design ecommerce database', 'build database for school', 'create full DB for hospital', 'design database architecture for restaurant system'.\n\n"
+        "2. DDL_MODIFY_SCHEMA: Use this for any structural changes to an existing schema.\n"
+        "   - This routes to the ModifySchemaAgent.\n"
+        "   - Examples: 'add column', 'remove field', 'rename column', 'change constraints', 'set default', 'delete collection', 'update field settings'.\n\n"
+        "ROUTING RULES:\n"
+        "- If the request is for a brand new design or a full database architecture (multiple tables) → DDL_CREATE_TABLE.\n"
+        "- If the request references an existing table/column or seeks to alter an existing structure → DDL_MODIFY_SCHEMA.\n"
+        "- If the result is DDL_CREATE_TABLE, the workflow will route to RequirementAgent for analysis.\n"
+        "- If the result is DDL_MODIFY_SCHEMA, the workflow will route to ModifySchemaAgent for processing.\n\n"
         "Respond ONLY with exactly one of:\n"
         "DDL_CREATE_TABLE\n"
         "DDL_MODIFY_SCHEMA"

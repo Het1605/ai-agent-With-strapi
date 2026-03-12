@@ -51,6 +51,8 @@ class AgentState(TypedDict):
     route_decision: Optional[str]
     memory: Dict[str, Any]
     schema_plan: Dict[str, Any]
+    requirements: Dict[str, Any] # For RequirementAgent
+    architecture_plan: Dict[str, Any] # For PlanningAgent
     interaction_message: str
     approval_status: str  # APPROVE, MODIFY, INVALID
     user_input: str
