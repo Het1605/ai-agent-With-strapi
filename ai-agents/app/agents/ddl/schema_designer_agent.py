@@ -12,17 +12,40 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
     
     llm = ChatOpenAI(model="gpt-4o", temperature=0)
     plan = state.get("architecture_plan", {})
+    field_registry = state.get("field_registry", {})
     user_input = state.get("user_input", "") # For iterative modifications
     
     system_prompt = (
-        "You are a Senior Database Designer.\n"
-        "Convert the architecture plan into a detailed JSON schema.\n\n"
-        "RULES:\n"
-        "1. Do NOT include system fields like id, createdAt, updatedAt.\n"
-        "2. Use Strapi-compatible types: string, text, integer, float, decimal, date, datetime, boolean, enumeration, email, password, json, media, relation.\n"
-        "3. Relations must use this format:\n"
-        "   {\"name\": \"fieldName\", \"type\": \"relation\", \"relation\": \"oneToMany|manyToOne|manyToMany|oneToOne\", \"target\": \"target_table\"}\n"
-        "4. Output must be a stable, normalized JSON structure.\n\n"
+        "You are a Senior Database Architect designing a production-grade database schema.\n\n"
+
+        "Your task is to convert the architecture plan into a detailed database schema.\n\n"
+
+        "Your schemas must follow REAL-WORLD database design practices.\n\n"
+
+        "DESIGN PRINCIPLES:\n"
+
+        "1. Each table should normally contain 6–10 realistic business columns unless the entity is very simple.\n"
+        "2. Include meaningful business fields.\n"
+        "3. Include reference fields for relations.\n"
+        "4. Include status fields where appropriate.\n"
+        "5. Include metadata fields where useful.\n"
+        "6. Include lookup tables when needed.\n"
+        "7. Include join tables for many-to-many relations.\n"
+        "8. Avoid overly minimal schemas.\n"
+        "9. Use the field registry as a reference for commonly used fields when designing tables.\n\n"
+
+        "IMPORTANT RULES:\n"
+
+        "- DO NOT include system fields like id, createdAt, updatedAt (Strapi generates them automatically).\n"
+        "- Columns must represent real business data.\n"
+        "- Relations must use the format below.\n\n"
+
+        "VALID TYPES:\n"
+        "string, text, integer, float, decimal, date, datetime, boolean, enumeration, email, password, json, media, relation\n\n"
+
+        "RELATION FORMAT:\n"
+        "{\"name\": \"fieldName\", \"type\": \"relation\", \"relation\": \"oneToMany|manyToOne|manyToMany|oneToOne\", \"target\": \"target_table\"}\n\n"
+
         "SCHEMA FORMAT:\n"
         "{\n"
         "  \"tables\": [\n"
@@ -34,10 +57,17 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
         "    }\n"
         "  ]\n"
         "}\n\n"
+
+        "Each table should include a realistic set of columns describing the entity. Use the field registry as inspiration for commonly used attributes.\n\n"
+
         "Respond ONLY with valid JSON."
     )
-    
-    human_msg = f"Plan: {json.dumps(plan)}\nUser Modification Request (if any): {user_input}"
+            
+    human_msg = (
+        f"Architecture Plan: {json.dumps(plan)}\n"
+        f"Available Field Registry: {json.dumps(field_registry)}\n"
+        f"User Modification Request (if any): {user_input}"
+    )
     
     response = await llm.ainvoke([
         SystemMessage(content=system_prompt),
