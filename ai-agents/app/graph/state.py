@@ -56,6 +56,10 @@ class AgentState(TypedDict):
     optional_modules: List[Dict[str, Any]] # Persisted suggested modules
     interaction_message: str
     approval_status: str  # APPROVE, MODIFY, INVALID
-    user_input: str
+    retry_count: int      # Track self-healing retries
+    execution_diagnostics: List[Dict[str, Any]] # Collected analysis from parallel agents
+    optimization_notes: List[str]
+    suggestions: List[str]
+    optimized_full_plan: Dict[str, Any]
     messages: Annotated[List[Any], operator.add]
    

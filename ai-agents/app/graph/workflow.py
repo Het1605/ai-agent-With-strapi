@@ -20,9 +20,18 @@ from app.agents.ddl.delete_field_agent import delete_field_agent
 from app.agents.interaction.interaction_planner_agent import interaction_planner_agent
 from app.agents.query.query_builder_agent import query_builder_agent
 from app.agents.execution.execution_agent import execution_agent
+from app.agents.error_handling_agents.execution_monitor_agent import execution_monitor_agent
+from app.agents.error_handling_agents.log_analyzer_agent import log_analyzer_agent
+from app.agents.error_handling_agents.schema_validator_agent import schema_validator_agent
+from app.agents.error_handling_agents.dependency_checker_agent import dependency_checker_agent
+from app.agents.error_handling_agents.naming_validator_agent import naming_validator_agent
+from app.agents.error_handling_agents.error_classifier_agent import error_classifier_agent
+from app.agents.error_handling_agents.error_recovery_agent import error_recovery_agent
+from app.agents.error_handling_agents.retry_execution_agent import retry_execution_agent
 from app.agents.response.response_formatter_agent import response_formatter_agent
 from app.agents.routing.state_router_agent import state_router_agent
 from app.agents.ddl.schema_visualization_agent import schema_visualization_agent
+from app.agents.ddl.schema_optimizer_agent import schema_optimizer_agent
 from app.agents.interaction.user_approval_agent import user_approval_agent
 from app.agents.interaction.user_reprompt_agent import user_reprompt_agent
 from app.agents.routing.approval_decision_router import approval_decision_router
@@ -92,6 +101,15 @@ def router_modify_schema_operation(state: AgentState):
     print(f"[router_modify_schema_operation] Routing to '{op}'")
     return op
 
+def router_error_classifier(state: AgentState):
+    """
+    Routes from ErrorClassifierAgent based on diagnostic findings.
+    If execution_error exists, routes to recovery. Otherwise, proceeds to formatter.
+    """
+    if state.get("execution_error"):
+        return "error_recovery"
+    return "formatter"
+
 
 def create_workflow():
     """
@@ -120,8 +138,17 @@ def create_workflow():
     workflow.add_node("interaction_planner", interaction_planner_agent)
     workflow.add_node("query_builder", query_builder_agent)
     workflow.add_node("execution", execution_agent)
+    workflow.add_node("execution_monitor", execution_monitor_agent)
+    workflow.add_node("log_analyzer", log_analyzer_agent)
+    workflow.add_node("schema_validator", schema_validator_agent)
+    workflow.add_node("dependency_checker", dependency_checker_agent)
+    workflow.add_node("naming_validator", naming_validator_agent)
+    workflow.add_node("error_classifier", error_classifier_agent)
+    workflow.add_node("error_recovery", error_recovery_agent)
+    workflow.add_node("retry_execution", retry_execution_agent)
     workflow.add_node("formatter", response_formatter_agent)
     workflow.add_node("state_router", state_router_agent)
+    workflow.add_node("schema_optimizer", schema_optimizer_agent)
     workflow.add_node("schema_visualization", schema_visualization_agent)
     workflow.add_node("user_approval", user_approval_agent)
     workflow.add_node("user_reprompt", user_reprompt_agent)
@@ -182,7 +209,8 @@ def create_workflow():
     # DDL Create Path: Requirement -> Planning -> Designer -> Visualization -> Approval
     workflow.add_edge("requirement", "planning")
     workflow.add_edge("planning", "schema_designer")
-    workflow.add_edge("schema_designer", "schema_visualization")
+    workflow.add_edge("schema_designer", "schema_optimizer")
+    workflow.add_edge("schema_optimizer", "schema_visualization")
     workflow.add_edge("schema_visualization", "user_approval")
     
     # After HIB Interrupt resumes:
@@ -242,6 +270,33 @@ def create_workflow():
     
     workflow.add_edge("query_builder", "execution")
     workflow.add_edge("execution", "formatter")
+
+    # Execution Monitoring (Analysis First Pattern)
+    workflow.add_edge("execution_monitor", "log_analyzer")
+    workflow.add_edge("execution_monitor", "schema_validator")
+    workflow.add_edge("execution_monitor", "dependency_checker")
+    workflow.add_edge("execution_monitor", "naming_validator")
+
+    # Convergence from parallel analysis
+    workflow.add_edge("log_analyzer", "error_classifier")
+    workflow.add_edge("schema_validator", "error_classifier")
+    workflow.add_edge("dependency_checker", "error_classifier")
+    workflow.add_edge("naming_validator", "error_classifier")
+
+    # Classification & Healing Routing
+    workflow.add_conditional_edges(
+        "error_classifier",
+        router_error_classifier,
+        {
+            "error_recovery": "error_recovery",
+            "formatter": "formatter"
+        }
+    )
+
+    # Sequential recovery loop
+    workflow.add_edge("error_classifier", "error_recovery")
+    workflow.add_edge("error_recovery", "retry_execution")
+    workflow.add_edge("retry_execution", "query_builder")
         
     # Non-database Convergence
     workflow.add_edge("conversation", "formatter")
