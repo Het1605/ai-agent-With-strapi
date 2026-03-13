@@ -97,7 +97,14 @@ async def query_builder_agent(state: AgentState) -> AgentState:
             processed_columns.append(col)
 
         # Map to Strapi fields via LLM
-        system_prompt = "Convert columns to Strapi 'fields' array. Output ONLY JSON: {\"fields\": [...]}"
+        system_prompt = (
+            "Convert technical columns to Strapi 'fields' array.\n"
+            "RULES:\n"
+            "1. PRESERVE all constraints: 'required', 'unique', 'minLength', 'maxLength', 'min', 'max', 'private', 'configurable', 'default'.\n"
+            "2. CLEAN OUTPUT: Omit any attribute that is 'false', 'null', or missing from the input.\n"
+            "3. RELATIONS: Use the 'relation', 'target', 'inversedBy', and 'mappedBy' fields exactly as provided.\n"
+            "Output ONLY JSON: {\"fields\": [...]}"
+        )
         human_msg = f"Table '{table_name}' Columns: {json.dumps(processed_columns)}"
         
         response = await llm.ainvoke([SystemMessage(content=system_prompt), HumanMessage(content=human_msg)])
@@ -158,7 +165,13 @@ async def _handle_modify_schema_payload(state, llm, schema_data, operation) -> d
                 target_id = target_table.lower().replace("_", "-").replace(" ", "-")
                 c["target"] = f"api::{target_id}.{target_id}"
 
-        system_prompt = "Convert to Strapi 'fields' array. Output ONLY JSON: {\"fields\": [...]}"
+        system_prompt = (
+            "Convert to Strapi 'fields' array.\n"
+            "RULES:\n"
+            "1. PRESERVE all constraints provided: 'required', 'unique', 'minLength', 'maxLength', 'min', 'max', 'private', 'default'.\n"
+            "2. CLEAN OUTPUT: Omit any attribute that is 'false', 'null', or missing from the input.\n"
+            "Output ONLY JSON: {\"fields\": [...]}"
+        )
         human_msg = f"Columns: {json.dumps(cols)}"
         response = await llm.ainvoke([SystemMessage(content=system_prompt), HumanMessage(content=human_msg)])
         try:

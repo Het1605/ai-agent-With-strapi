@@ -227,84 +227,64 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
 
 
             --------------------------------------------------
-            COLUMN TYPE SELECTION (CRITICAL)
+            DYNAMIC COLUMN GENERATION (CRITICAL)
             --------------------------------------------------
 
-            A Field Registry will be provided in the input context.
+            A Field Registry will be provided in the input context. This registry is the ABSOLUTE SOURCE OF TRUTH for column types and constraints.
 
-            The Field Registry contains commonly used fields and their correct data types.
+            You must follow these rules without exception:
 
-            You MUST consult the Field Registry when deciding column types.
+            RULE 1 — NO FIXED TEMPLATES
+            Columns must NOT always contain 'required', 'unique', and 'default'. Only include attributes that are meaningful for the specific field and supported by the registry.
 
-            Rules:
+            RULE 2 — REGISTRY AUTHORITY
+            For every field, check `field_registry[type]`. This defines the ONLY valid constraints you can use. Select appropriate constraints from this list based on the field's purpose.
 
-            • Always check the Field Registry before assigning a column type.
-            • If a field exists in the registry, you MUST use the exact type defined there.
-            • Do NOT invent a new type if the field already exists in the registry.
-            • Use the registry as the primary source of truth for column types.
-            • Only infer a type if the field is not present in the registry.
+            RULE 3 — OMIT UNUSED CONSTRAINTS
+            If a constraint is not needed, OMIT IT ENTIRELY. Do NOT output `required: false`, `unique: false`, or `"default": null`. These must never appear in the output.
 
-            Example:
+            RULE 4 — RELATION INTEGRITY
+            Relation fields must STRICTLY follow the relation registry. Use attributes like `relation`, `target`, `inversedBy`, and `mappedBy` only where appropriate.
 
-            If the registry contains:
+            RULE 5 — INTELLIGENT VALIDATION
+            Generate logical validation rules based on domain knowledge:
+            - email → unique, required
+            - password → required, minLength (e.g. 8), private: true
+            - price → required, min (e.g. 0)
+            - username → required, unique, minLength (e.g. 5)
 
+            RULE 6 — CLEAN OUTPUT
+            Columns should only contain `name`, `type`, and meaningful constraints. No empty or null properties.
+
+            Example Mapping from Registry:
+            If registry for 'password' supports [configurable, required, minLength, private...]:
             {
-            "email": "email",
-            "price": "decimal",
-            "status": "enumeration"
+              "name": "password",
+              "type": "password",
+              "required": true,
+              "minLength": 8,
+              "private": true
             }
-
-            Then the schema MUST use those exact types.
-
-            Incorrect:
-            email → string
-
-            Correct:
-            email → email
-
 
             --------------------------------------------------
             VALID COLUMN TYPES
             --------------------------------------------------
 
-            Allowed column types are:
-
-            string  
-            text  
-            integer  
-            float  
-            decimal  
-            date  
-            datetime  
-            boolean  
-            enumeration  
-            email  
-            password  
-            json  
-            media  
-            relation  
-
-            However, **these types should only be used after consulting the Field Registry**
+            Allowed column types are defined by the keys in the Field Registry. You MUST consult the Field Registry for the correct type for every field.
 
             --------------------------------------------------
             RELATION FORMAT
             --------------------------------------------------
 
-            Relations must follow this exact structure:
-
-            {
-            "name": "fieldName",
-            "type": "relation",
-            "relation": "oneToMany | manyToOne | manyToMany | oneToOne",
-            "target": "target_table"
-            }
-
+            Relations must follow the relation registry structure. Ensure `target` is the authoritative `slug` of the target entity.
 
             --------------------------------------------------
             SCHEMA OUTPUT FORMAT (STRICT)
             --------------------------------------------------
 
-            Return ONLY valid JSON.
+            Return ONLY valid JSON. 
+            Note how columns now vary in structure based on their type and constraints.
+
             Example:
             {
             "tables": [
@@ -315,13 +295,9 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
                 "slug": "...",
                 "display_name": "...",
                 "columns": [
-                    {
-                    "name": "...",
-                    "type": "...",
-                    "required": true/false,
-                    "unique": true/false,
-                    "default": null
-                    }
+                    { "name": "title", "type": "string", "required": true },
+                    { "name": "price", "type": "decimal", "min": 0 },
+                    { "name": "owner", "type": "relation", "relation": "manyToOne", "target": "user" }
                 ]
                 }
             ]

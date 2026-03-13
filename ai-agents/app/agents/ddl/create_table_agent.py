@@ -60,7 +60,12 @@ async def create_table_agent(state: AgentState) -> AgentState:
         "- Use Strapi types: string, text, richtext, email, password, integer, biginteger, float, decimal, datetime, date, time, boolean, enumeration, relation, media, json.\n"
         "- Relation Format: {\"name\": \"...\", \"type\": \"relation\", \"relation\": \"oneToMany|manyToOne|oneToOne|manyToMany\", \"target\": \"target_table\"}\n\n"
         "FIELD CAPABILITIES (Supported Strapi Options):\n"
+        "Reference the 'field_registry' for valid constraints (minLength, private, min, max, unique, required, default, etc.).\n"
         f"{json.dumps(state['field_registry'] if state.get('field_registry') else {}, indent=2)}\n\n"
+        "DYNAMIC COLUMN GENERATION RULES:\n"
+        "1. NO FIXED TEMPLATES: Only include attributes that are meaningful for the field and supported by the registry.\n"
+        "2. OMIT UNUSED CONSTRAINTS: Do NOT include 'false' or 'null' constraints. Only include attributes that explicitly modify behavior.\n"
+        "3. INTELLIGENT VALIDATION: Generate logical rules (e.g. price -> min: 0, password -> minLength: 8, private: true).\n\n"
         "OUTPUT REQUIREMENTS:\n"
         "- Respond ONLY with valid JSON.\n"
         "- No markdown blocks, no explanation, no comments.\n\n"
@@ -70,7 +75,7 @@ async def create_table_agent(state: AgentState) -> AgentState:
         '    {\n'
         '      "table_name": "...",\n'
         '      "columns": [\n'
-        '        {"name": "...", "type": "...", "required": true/false, "unique": true/false, "default": ..., "relation": "...", "target": "..."}\n'
+        '        { "name": "...", "type": "...", "required": true, "minLength": 8, "private": true }\n'
         '      ]\n'
         '    }\n'
         '  ]\n'
