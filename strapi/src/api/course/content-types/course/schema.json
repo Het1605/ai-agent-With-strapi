@@ -1,0 +1,76 @@
+{
+  "kind": "collectionType",
+  "collectionName": "courses",
+  "info": {
+    "singularName": "course",
+    "pluralName": "courses",
+    "displayName": "Course"
+  },
+  "options": {},
+  "attributes": {
+    "course_name": {
+      "type": "string",
+      "required": true,
+      "unique": true
+    },
+    "course_code": {
+      "type": "string",
+      "required": true,
+      "unique": true
+    },
+    "description": {
+      "type": "text",
+      "required": false,
+      "unique": false
+    },
+    "credits": {
+      "type": "integer",
+      "required": true,
+      "unique": false
+    },
+    "department": {
+      "type": "string",
+      "required": true,
+      "unique": false
+    },
+    "semester": {
+      "type": "enumeration",
+      "required": true,
+      "unique": false,
+      "default": "fall",
+      "enum": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ]
+    },
+    "year": {
+      "type": "integer",
+      "required": true,
+      "unique": false
+    },
+    "instructor": {
+      "type": "string",
+      "required": false,
+      "unique": false
+    },
+    "schedule": {
+      "type": "json",
+      "required": false,
+      "unique": false
+    },
+    "syllabus": {
+      "type": "media",
+      "required": false,
+      "unique": false,
+      "multiple": false,
+      "allowedTypes": [
+        "images",
+        "files",
+        "videos",
+        "audios"
+      ]
+    }
+  }
+}

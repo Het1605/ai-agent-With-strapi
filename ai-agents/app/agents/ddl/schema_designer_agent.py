@@ -23,10 +23,27 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
         "Your task is to convert the architecture plan into a detailed database schema. "
         "If this is a REVISION, refer to the 'Previous Schema Plan' and 'Conversation History' to ensure consistency while applying the new architectural changes.\n\n"
 
-        "Your schemas must follow REAL-WORLD database design practices.\n\n"
+        "YOUR CORE RESPONSIBILITY: NAMING STRATEGY\n"
+        "You must decide the most linguistically correct and professional names for each table.\n"
+        "1. table_name: Internal identifier (snake_case).\n"
+        "2. singular_name: Correct English singular form (one record).\n"
+        "3. plural_name: Correct English plural form (the collection name).\n"
+        "4. slug: Kebab-case version for API usage.\n"
+        "5. display_name: Human-readable title case.\n\n"
+
+        "STRICT NAMING RULES:\n"
+        "- ALWAYS use correct English pluralization (e.g., 'category' -> 'categories', 'person' -> 'people').\n"
+        "- NEVER make singular_name and plural_name identical (e.g., if the word is 'Status', use 'status' for singular and 'statuses' for plural).\n"
+        "- Singular represents ONE entity; Plural represents the COLLECTION.\n"
+        "- Slug must be lowercase kebab-case.\n"
+        "- Display name should be professional Title Case.\n\n"
+
+        "EXAMPLES:\n"
+        "- Category: {singular: 'category', plural: 'categories', slug: 'category', display: 'Category'}\n"
+        "- Status: {singular: 'status', plural: 'statuses', slug: 'status', display: 'Status'}\n"
+        "- Address: {singular: 'address', plural: 'addresses', slug: 'address', display: 'Address'}\n\n"
 
         "DESIGN PRINCIPLES:\n"
-
         "1. Each table should normally contain 8–10 realistic business columns unless the entity is very simple.also consider more column if needed\n"
         "2. Include meaningful business fields.\n"
         "3. Include reference fields for relations.\n"
@@ -38,7 +55,6 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
         "9. Use the field registry as a reference for commonly used fields when designing tables.\n\n"
 
         "IMPORTANT RULES:\n"
-
         "- DO NOT include system fields like id, createdAt, updatedAt (Strapi generates them automatically).\n"
         "- Columns must represent real business data.\n"
         "- Relations must use the format below.\n\n"
@@ -54,6 +70,10 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
         "  \"tables\": [\n"
         "    {\n"
         "      \"table_name\": \"...\",\n"
+        "      \"singular_name\": \"...\",\n"
+        "      \"plural_name\": \"...\",\n"
+        "      \"slug\": \"...\",\n"
+        "      \"display_name\": \"...\",\n"
         "      \"columns\": [\n"
         "        {\"name\": \"...\", \"type\": \"...\", \"required\": true/false, \"unique\": true/false, \"default\": null}\n"
         "      ]\n"
@@ -82,9 +102,19 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
     
     try:
         schema = json.loads(response.content.strip().replace("```json", "").replace("```", ""))
+        
+        # Validation Rule: singular != plural
+        for table in schema.get("tables", []):
+            s = table.get("singular_name")
+            p = table.get("plural_name")
+            if s and p and s == p:
+                print(f"[SchemaDesignerAgent] WARNING: Singular == Plural for '{s}'. Fixing...")
+                table["plural_name"] = f"{p}s" # Simple safety fixup
+
         state["schema_plan"] = schema
         state["schema_ready"] = True
-        print(f"[SchemaDesignerAgent] Generated {len(schema.get('tables', []))} tables.")
+        print(f"[SchemaDesignerAgent] Generated {len(schema.get('tables', []))} tables with AI-driven naming.")
+        print("Schemas:", state["schema_plan"])
     except Exception as e:
         print(f"[SchemaDesignerAgent] Error: {e}")
         state["schema_ready"] = False

@@ -430,6 +430,137 @@ export interface AdminUser extends Struct.CollectionTypeSchema {
   };
 }
 
+export interface ApiCourseCourse extends Struct.CollectionTypeSchema {
+  collectionName: 'courses';
+  info: {
+    displayName: 'Course';
+    pluralName: 'courses';
+    singularName: 'course';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    course_code: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.Unique;
+    course_name: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.Unique;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    credits: Schema.Attribute.Integer & Schema.Attribute.Required;
+    department: Schema.Attribute.String & Schema.Attribute.Required;
+    description: Schema.Attribute.Text;
+    instructor: Schema.Attribute.String;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::course.course'
+    > &
+      Schema.Attribute.Private;
+    publishedAt: Schema.Attribute.DateTime;
+    schedule: Schema.Attribute.JSON;
+    semester: Schema.Attribute.Enumeration<
+      ['spring', 'summer', 'fall', 'winter']
+    > &
+      Schema.Attribute.Required &
+      Schema.Attribute.DefaultTo<'fall'>;
+    syllabus: Schema.Attribute.Media<'images' | 'files' | 'videos' | 'audios'>;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    year: Schema.Attribute.Integer & Schema.Attribute.Required;
+  };
+}
+
+export interface ApiEmployeeEmployee extends Struct.CollectionTypeSchema {
+  collectionName: 'employees';
+  info: {
+    displayName: 'Employees';
+    pluralName: 'employees';
+    singularName: 'employee';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    department: Schema.Attribute.String & Schema.Attribute.Required;
+    email: Schema.Attribute.Email &
+      Schema.Attribute.Required &
+      Schema.Attribute.Unique;
+    first_name: Schema.Attribute.String & Schema.Attribute.Required;
+    hire_date: Schema.Attribute.Date & Schema.Attribute.Required;
+    job_title: Schema.Attribute.String & Schema.Attribute.Required;
+    last_name: Schema.Attribute.String & Schema.Attribute.Required;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::employee.employee'
+    > &
+      Schema.Attribute.Private;
+    phone_number: Schema.Attribute.String;
+    profile_picture: Schema.Attribute.Media<
+      'images' | 'files' | 'videos' | 'audios'
+    >;
+    publishedAt: Schema.Attribute.DateTime;
+    salary: Schema.Attribute.Decimal & Schema.Attribute.Required;
+    status: Schema.Attribute.Enumeration<['active', 'inactive', 'terminated']> &
+      Schema.Attribute.Required &
+      Schema.Attribute.DefaultTo<'active'>;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
+export interface ApiStudentStudent extends Struct.CollectionTypeSchema {
+  collectionName: 'students';
+  info: {
+    displayName: 'Student';
+    pluralName: 'students';
+    singularName: 'student';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    address: Schema.Attribute.Text;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    date_of_birth: Schema.Attribute.Date & Schema.Attribute.Required;
+    email: Schema.Attribute.Email &
+      Schema.Attribute.Required &
+      Schema.Attribute.Unique;
+    enrollment_date: Schema.Attribute.Date & Schema.Attribute.Required;
+    first_name: Schema.Attribute.String & Schema.Attribute.Required;
+    last_name: Schema.Attribute.String & Schema.Attribute.Required;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::student.student'
+    > &
+      Schema.Attribute.Private;
+    notes: Schema.Attribute.Text;
+    phone_number: Schema.Attribute.String;
+    profile_picture: Schema.Attribute.Media<
+      'images' | 'files' | 'videos' | 'audios'
+    >;
+    publishedAt: Schema.Attribute.DateTime;
+    status: Schema.Attribute.Enumeration<['active', 'inactive', 'graduated']> &
+      Schema.Attribute.Required &
+      Schema.Attribute.DefaultTo<'active'>;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
 export interface PluginContentReleasesRelease
   extends Struct.CollectionTypeSchema {
   collectionName: 'strapi_releases';
@@ -941,6 +1072,9 @@ declare module '@strapi/strapi' {
       'admin::transfer-token': AdminTransferToken;
       'admin::transfer-token-permission': AdminTransferTokenPermission;
       'admin::user': AdminUser;
+      'api::course.course': ApiCourseCourse;
+      'api::employee.employee': ApiEmployeeEmployee;
+      'api::student.student': ApiStudentStudent;
       'plugin::content-releases.release': PluginContentReleasesRelease;
       'plugin::content-releases.release-action': PluginContentReleasesReleaseAction;
       'plugin::i18n.locale': PluginI18NLocale;
