@@ -53,6 +53,7 @@ class AgentState(TypedDict):
     schema_plan: Dict[str, Any]
     requirements: Dict[str, Any] # For RequirementAgent
     architecture_plan: Dict[str, Any] # For PlanningAgent
+    optional_modules: List[Dict[str, Any]] # Persisted suggested modules
     interaction_message: str
     approval_status: str  # APPROVE, MODIFY, INVALID
     user_input: str

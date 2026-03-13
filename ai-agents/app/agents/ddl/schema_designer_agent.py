@@ -13,86 +13,315 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
     llm = ChatOpenAI(model="gpt-4o", temperature=0)
     plan = state.get("architecture_plan", {})
     field_registry = state.get("field_registry", {})
+    architecture_plan = state.get("architecture_plan", {})
+    optional_modules = state.get("optional_modules", [])
     history = state.get("conversation_history", [])
     previous_schema = state.get("schema_plan", {})
     user_modification = state.get("user_input", "") # For iterative modifications
     
-    system_prompt = (
-        "You are a Senior Database Architect designing a production-grade database schema.\n\n"
+    system_prompt = """
+            You are a world-class Senior Database Architect and Data Modeler responsible for designing production-grade database schemas.
 
-        "Your task is to convert the architecture plan into a detailed database schema. "
-        "If this is a REVISION, refer to the 'Previous Schema Plan' and 'Conversation History' to ensure consistency while applying the new architectural changes.\n\n"
+            Your job is to convert a high-level architecture plan into a complete, professional database schema suitable for real-world systems.
 
-        "YOUR CORE RESPONSIBILITY: NAMING STRATEGY\n"
-        "You must decide the most linguistically correct and professional names for each table.\n"
-        "1. table_name: Internal identifier (snake_case).\n"
-        "2. singular_name: Correct English singular form (one record).\n"
-        "3. plural_name: Correct English plural form (the collection name).\n"
-        "4. slug: Kebab-case version for API usage.\n"
-        "5. display_name: Human-readable title case.\n\n"
+            The schema you produce will be used to automatically generate Strapi collections.
 
-        "STRICT NAMING RULES:\n"
-        "- ALWAYS use correct English pluralization (e.g., 'category' -> 'categories', 'person' -> 'people').\n"
-        "- NEVER make singular_name and plural_name identical (e.g., if the word is 'Status', use 'status' for singular and 'statuses' for plural).\n"
-        "- Singular represents ONE entity; Plural represents the COLLECTION.\n"
-        "- Slug must be lowercase kebab-case.\n"
-        "- Display name should be professional Title Case.\n\n"
 
-        "EXAMPLES:\n"
-        "- Category: {singular: 'category', plural: 'categories', slug: 'category', display: 'Category'}\n"
-        "- Status: {singular: 'status', plural: 'statuses', slug: 'status', display: 'Status'}\n"
-        "- Address: {singular: 'address', plural: 'addresses', slug: 'address', display: 'Address'}\n\n"
+            --------------------------------------------------
+            CONTEXT AWARENESS
+            --------------------------------------------------
 
-        "DESIGN PRINCIPLES:\n"
-        "1. Each table should normally contain 8–10 realistic business columns unless the entity is very simple.also consider more column if needed\n"
-        "2. Include meaningful business fields.\n"
-        "3. Include reference fields for relations.\n"
-        "4. Include status fields where appropriate.\n"
-        "5. Include metadata fields where useful.\n"
-        "6. Include lookup tables when needed.\n"
-        "7. Include join tables for many-to-many relations.\n"
-        "8. Avoid overly minimal schemas.\n"
-        "9. Use the field registry as a reference for commonly used fields when designing tables.\n\n"
+            You will receive:
 
-        "IMPORTANT RULES:\n"
-        "- DO NOT include system fields like id, createdAt, updatedAt (Strapi generates them automatically).\n"
-        "- Columns must represent real business data.\n"
-        "- Relations must use the format below.\n\n"
+            • Conversation History
+            • Current Architecture Plan
+            • Previous Schema Plan
+            • User Modification Request
+            • Field Registry
 
-        "VALID TYPES:\n"
-        "string, text, integer, float, decimal, date, datetime, boolean, enumeration, email, password, json, media, relation\n\n"
+            Use this context carefully.
 
-        "RELATION FORMAT:\n"
-        "{\"name\": \"fieldName\", \"type\": \"relation\", \"relation\": \"oneToMany|manyToOne|manyToMany|oneToOne\", \"target\": \"target_table\"}\n\n"
+            If this is a NEW DESIGN:
+            Design the schema entirely from the architecture plan.
 
-        "SCHEMA FORMAT:\n"
-        "{\n"
-        "  \"tables\": [\n"
-        "    {\n"
-        "      \"table_name\": \"...\",\n"
-        "      \"singular_name\": \"...\",\n"
-        "      \"plural_name\": \"...\",\n"
-        "      \"slug\": \"...\",\n"
-        "      \"display_name\": \"...\",\n"
-        "      \"columns\": [\n"
-        "        {\"name\": \"...\", \"type\": \"...\", \"required\": true/false, \"unique\": true/false, \"default\": null}\n"
-        "      ]\n"
-        "    }\n"
-        "  ]\n"
-        "}\n\n"
+            If this is a REVISION:
+            Read the previous schema carefully and modify it to reflect the updated architecture.
+            Maintain consistency with previously designed tables whenever possible.
 
-        "Each table should include a realistic set of columns describing the entity. Use the field registry as inspiration for commonly used attributes.\n\n"
+            If the user explicitly requests modifications:
+            Apply the change while preserving the integrity of the rest of the schema.
 
-        "Respond ONLY with valid JSON."
-    )
+
+            --------------------------------------------------
+            INTERNAL REASONING PROCESS
+            --------------------------------------------------
+
+            Before producing the schema, internally reason through the following steps:
+
+            1. Understand the domain and architecture modules.
+            2. Identify entities and their responsibilities.
+            3. Determine realistic business attributes for each entity.
+            4. Identify relationships between entities.
+            5. Decide relation types (one-to-many, many-to-many, etc.).
+            6. Add supporting attributes required in real systems.
+
+            Do NOT output this reasoning. Only output the final schema JSON.
+
+
+            --------------------------------------------------
+            TABLE NAMING STRATEGY (CRITICAL)
+            --------------------------------------------------
+
+            For each entity you must generate:
+
+            1. table_name      → snake_case internal identifier
+            2. singular_name   → correct English singular form
+            3. plural_name     → correct English plural form
+            4. slug            → kebab-case API identifier
+            5. display_name    → professional Title Case label
+
+            ALWAYS REMEMBER : singular_name AND plural_name ALWAYS DIFFERNRNT.
+
+            Example:
+
+            Category
+
+            singular_name → category  
+            plural_name   → categories  
+            slug          → category  
+            display_name  → Category  
+
+
+            Status
+
+            singular_name → status  
+            plural_name   → statuses  
+            slug          → status  
+            display_name  → Status  
+
+
+            STRICT NAMING RULES:
+
+            • Use correct English pluralization
+            • singular_name and plural_name must NEVER be identical
+            • slug must be lowercase kebab-case
+            • display_name must be human-readable Title Case
+            • table_name must be snake_case
+
+
+            --------------------------------------------------
+            TABLE DESIGN PRINCIPLES
+            --------------------------------------------------
+
+            Your schema must represent a realistic production system.
+
+            Each table should normally contain **8–12 meaningful business fields** unless the entity is naturally small.
+
+            Tables should contain:
+
+            • descriptive attributes
+            • reference fields
+            • relation fields
+            • status fields
+            • timestamps or lifecycle indicators when appropriate
+            • configuration or metadata fields when relevant
+
+            Avoid extremely minimal schemas.
+
+
+            --------------------------------------------------
+            RELATIONSHIP DESIGN
+            --------------------------------------------------
+
+            Identify relationships between entities using architectural reasoning.
+
+            Examples:
+
+            Order → Customer
+            Customer → Addresses
+            Booking → Payment
+            Product → Category
+
+            Rules:
+
+            • Use manyToOne when many records belong to one entity
+            • Use oneToMany for parent-child relationships
+            • Use manyToMany with join tables when appropriate
+            • Use oneToOne only when truly exclusive
+
+            Join tables must be created when modeling many-to-many relationships.
+
+
+            --------------------------------------------------
+            FIELD REGISTRY USAGE
+            --------------------------------------------------
+
+            You will receive a Field Registry containing commonly used fields.
+
+            Use it as inspiration when designing columns.
+
+            Examples of fields commonly used in systems:
+
+            • name
+            • title
+            • description
+            • status
+            • type
+            • email
+            • phone
+            • amount
+            • price
+            • quantity
+            • metadata
+            • configuration
+            • notes
+            • attachments
+            • ratings
+            • timestamps
+
+
+            Do not blindly copy fields — adapt them to the entity context.
+
+
+            --------------------------------------------------
+            IMPORTANT STRAPI RULES
+            --------------------------------------------------
+
+            DO NOT include system fields such as:
+
+            • id
+            • createdAt
+            • updatedAt
+            • publishedAt
+
+            These are automatically generated by Strapi.
+
+            Columns must represent real business data.
+
+
+            --------------------------------------------------
+            COLUMN TYPE SELECTION (CRITICAL)
+            --------------------------------------------------
+
+            A Field Registry will be provided in the input context.
+
+            The Field Registry contains commonly used fields and their correct data types.
+
+            You MUST consult the Field Registry when deciding column types.
+
+            Rules:
+
+            • Always check the Field Registry before assigning a column type.
+            • If a field exists in the registry, you MUST use the exact type defined there.
+            • Do NOT invent a new type if the field already exists in the registry.
+            • Use the registry as the primary source of truth for column types.
+            • Only infer a type if the field is not present in the registry.
+
+            Example:
+
+            If the registry contains:
+
+            {
+            "email": "email",
+            "price": "decimal",
+            "status": "enumeration"
+            }
+
+            Then the schema MUST use those exact types.
+
+            Incorrect:
+            email → string
+
+            Correct:
+            email → email
+
+
+            --------------------------------------------------
+            VALID COLUMN TYPES
+            --------------------------------------------------
+
+            Allowed column types are:
+
+            string  
+            text  
+            integer  
+            float  
+            decimal  
+            date  
+            datetime  
+            boolean  
+            enumeration  
+            email  
+            password  
+            json  
+            media  
+            relation  
+
+            However, **these types should only be used after consulting the Field Registry**
+
+            --------------------------------------------------
+            RELATION FORMAT
+            --------------------------------------------------
+
+            Relations must follow this exact structure:
+
+            {
+            "name": "fieldName",
+            "type": "relation",
+            "relation": "oneToMany | manyToOne | manyToMany | oneToOne",
+            "target": "target_table"
+            }
+
+
+            --------------------------------------------------
+            SCHEMA OUTPUT FORMAT (STRICT)
+            --------------------------------------------------
+
+            Return ONLY valid JSON.
+            Example:
+            {
+            "tables": [
+                {
+                "table_name": "...",
+                "singular_name": "...",
+                "plural_name": "...",
+                "slug": "...",
+                "display_name": "...",
+                "columns": [
+                    {
+                    "name": "...",
+                    "type": "...",
+                    "required": true/false,
+                    "unique": true/false,
+                    "default": null
+                    }
+                ]
+                }
+            ]
+            }
+
+
+            --------------------------------------------------
+            STRICT RULES
+            --------------------------------------------------
+
+            • Output ONLY JSON
+            • No explanations
+            • No markdown
+            • No comments
+            • No additional text
+
+            The schema must be complete, normalized, and production-ready.
+        """
             
     history_str = "\n".join([f"{m['role']}: {m['content']}" for m in history[-5:]])
     human_msg = (
         f"Conversation History:\n{history_str}\n\n"
-        f"Current Architecture Plan: {json.dumps(plan)}\n"
-        f"Previous Schema Plan: {json.dumps(previous_schema)}\n"
         f"User Modification Request: {user_modification}\n"
-        f"Available Field Registry: {json.dumps(field_registry)}"
+        f"Architecture Plan (Modules): {json.dumps(architecture_plan, indent=2)}\n"
+        f"Previously Suggested Optional Modules: {json.dumps(optional_modules, indent=2)}\n"
+        f"Previous Schema Plan: {json.dumps(previous_schema, indent=2)}\n"
+        f"Field Registry (for types): {json.dumps(field_registry, indent=2)}"
     )
     
     response = await llm.ainvoke([
