@@ -3,21 +3,6 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from app.graph.state import AgentState
 from app.agents.ddl.schema_utils import maybe_reset_schema, format_history
 import json
-import re
-
-
-def _resolve_relation_uid(raw_target: str) -> str:
-    noise    = r'\b(table|collection|model|entity|db|database|the|a|an)\b'
-    cleaned  = re.sub(noise, '', raw_target, flags=re.IGNORECASE).strip()
-    singular = re.sub(r'[\s\-_]+', '_', cleaned.lower()).strip('_')
-    if singular.endswith('sses') or singular.endswith('ches') or singular.endswith('xes'):
-        pass
-    elif singular.endswith('ies'):
-        singular = singular[:-3] + 'y'
-    elif singular.endswith('s') and not singular.endswith('ss'):
-        singular = singular[:-1]
-    return f"api::{singular}.{singular}"
-
 
 async def add_column_agent(state: AgentState) -> AgentState:
     """
@@ -111,11 +96,7 @@ async def add_column_agent(state: AgentState) -> AgentState:
 
         current_schema["columns"] = list(existing_cols.values())
 
-        # Normalise relation targets
-        for col in current_schema["columns"]:
-            if col.get("type") == "relation" and col.get("target"):
-                col["target"] = _resolve_relation_uid(col["target"])
-
+        # No more hardcoded naming logic. Relation targets are passed raw to QueryBuilder.
         state["schema_data"] = current_schema
 
         # Missing field detection — combine LLM suggestion with Python checks
@@ -141,11 +122,6 @@ async def add_column_agent(state: AgentState) -> AgentState:
                     missing.append(key)
 
         state["missing_fields"] = missing
-
-        print(f"[AddColumnAgent] table_name     : {current_schema.get('table_name')}")
-        print(f"[AddColumnAgent] columns        : {current_schema.get('columns')}")
-        print(f"[AddColumnAgent] missing_fields : {missing}")
-        print(f"[AddColumnAgent] schema_ready   : {not missing}")
 
         if not missing:
             state["schema_ready"]         = True

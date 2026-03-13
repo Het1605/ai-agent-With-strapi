@@ -12,12 +12,11 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
     
     llm = ChatOpenAI(model="gpt-4o", temperature=0)
     plan = state.get("architecture_plan", {})
-    field_registry = state.get("field_registry", {})
-    architecture_plan = state.get("architecture_plan", {})
-    optional_modules = state.get("optional_modules", [])
+    existing_collections = state.get("existing_collections", [])
     history = state.get("conversation_history", [])
     previous_schema = state.get("schema_plan", {})
     user_modification = state.get("user_input", "") # For iterative modifications
+    field_registry = state.get("field_registry")
     
     system_prompt = """
             You are a world-class Senior Database Architect and Data Modeler responsible for designing production-grade database schemas.
@@ -28,11 +27,26 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
 
 
             --------------------------------------------------
+            AUTHORITATIVE CONTEXT: EXISTING SCHEMA
+            --------------------------------------------------
+
+            You will receive a list of "Existing Collections" (Schema Memory).
+            
+            This is the Authoritative Source of Truth for the current system state.
+            
+            Rules for handling Existing Schema:
+            1. DUPLICATE PREVENTION: NEVER generate a creation block for a table that already exists in 'existing_collections'.
+            2. RELATIONSHIP DISCOVERY: When designing relations, prioritize connecting new tables to existing ones if it makes architectural sense.
+            3. NAMING INTEGRITY: Use the exact 'singular_name' from 'existing_collections' when targeting them in relations.
+
+
+            --------------------------------------------------
             CONTEXT AWARENESS
             --------------------------------------------------
 
             You will receive:
 
+            • Existing Collections (Schema Memory)
             • Conversation History
             • Current Architecture Plan
             • Previous Schema Plan
@@ -316,12 +330,12 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
             
     history_str = "\n".join([f"{m['role']}: {m['content']}" for m in history[-5:]])
     human_msg = (
+        f"Existing Collections in Database:\n{json.dumps(existing_collections, indent=2)}\n\n"
         f"Conversation History:\n{history_str}\n\n"
+        f"Architecture Plan: {json.dumps(plan, indent=2)}\n"
+        f"Previous Schema: {json.dumps(previous_schema, indent=2)}\n"
         f"User Modification Request: {user_modification}\n"
-        f"Architecture Plan (Modules): {json.dumps(architecture_plan, indent=2)}\n"
-        f"Previously Suggested Optional Modules: {json.dumps(optional_modules, indent=2)}\n"
-        f"Previous Schema Plan: {json.dumps(previous_schema, indent=2)}\n"
-        f"Field Registry (for types): {json.dumps(field_registry, indent=2)}"
+        f"Field Registry: {json.dumps(field_registry)}"
     )
     
     response = await llm.ainvoke([
@@ -332,17 +346,23 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
     try:
         schema = json.loads(response.content.strip().replace("```json", "").replace("```", ""))
         
-        # Validation Rule: singular != plural
+        # Absolute Authority: Validation + Hardened Fixup
         for table in schema.get("tables", []):
             s = table.get("singular_name")
             p = table.get("plural_name")
-            if s and p and s == p:
+            
+            if not s or not p:
+                print(f"[SchemaDesignerAgent] ERROR: Missing naming metadata for '{table.get('table_name')}'.")
+                state["schema_ready"] = False
+                return state
+
+            if s == p:
                 print(f"[SchemaDesignerAgent] WARNING: Singular == Plural for '{s}'. Fixing...")
-                table["plural_name"] = f"{p}s" # Simple safety fixup
+                table["plural_name"] = f"{p}s" # Safety backup to prevent Strapi crash
 
         state["schema_plan"] = schema
         state["schema_ready"] = True
-        print(f"[SchemaDesignerAgent] Generated {len(schema.get('tables', []))} tables with AI-driven naming.")
+        print(f"[SchemaDesignerAgent] Generated {len(schema.get('tables', []))} tables with Absolute Naming Authority.")
         print("Schemas:", state["schema_plan"])
     except Exception as e:
         print(f"[SchemaDesignerAgent] Error: {e}")

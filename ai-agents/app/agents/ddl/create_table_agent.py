@@ -3,21 +3,6 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from app.graph.state import AgentState
 from app.agents.ddl.schema_utils import maybe_reset_schema, format_history
 import json
-import re
-
-
-def _resolve_relation_uid(raw_target: str) -> str:
-    noise    = r'\b(table|collection|model|entity|db|database|the|a|an)\b'
-    cleaned  = re.sub(noise, '', raw_target, flags=re.IGNORECASE).strip()
-    singular = re.sub(r'[\s\-_]+', '_', cleaned.lower()).strip('_')
-    if singular.endswith('sses') or singular.endswith('ches') or singular.endswith('xes'):
-        pass
-    elif singular.endswith('ies'):
-        singular = singular[:-3] + 'y'
-    elif singular.endswith('s') and not singular.endswith('ss'):
-        singular = singular[:-1]
-    return f"api::{singular}.{singular}"
-
 
 async def create_table_agent(state: AgentState) -> AgentState:
     """
@@ -37,7 +22,6 @@ async def create_table_agent(state: AgentState) -> AgentState:
         existing_cols_list = []
     
     raw_schema     = state.get("schema_data") or {}
-    active_agent   = state.get("active_agent") or "create_table"
 
     print("\n[SchemaContext] Existing Collections:")
     if existing_cols_list:
@@ -123,18 +107,9 @@ async def create_table_agent(state: AgentState) -> AgentState:
             state["schema_ready"] = True
             return state
 
-        for table in tables:
-            for col in table.get("columns", []):
-                if col.get("type") == "relation" and col.get("target"):
-                    raw_target = col["target"]
-                    uid = _resolve_relation_uid(raw_target)
-                    col["target"] = uid
-                    print(f"[RelationResolver] {table['table_name']}.{col['name']} -> {uid}")
-
+        # Relations: Pass raw target table name. QueryBuilder will handle final UID formatting.
         state["schema_plan"] = {"tables": tables}
         
-        # We no longer set schema_ready=True here.
-        # The schema MUST pass through Review, Visualization, and Approval first.
         state["schema_ready"]         = False
         state["interaction_phase"]    = False 
         

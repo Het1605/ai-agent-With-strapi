@@ -70,7 +70,10 @@ export default {
         // Use the exact names provided by the Python Lean Agent
         const actualSingular = singularName.toLowerCase();
         const actualPlural = pluralName.toLowerCase();
-        const actualDisplayName = displayName || (collectionName.charAt(0).toUpperCase() + collectionName.slice(1));
+        const actualDisplayName = displayName || actualSingular;
+
+        // @ts-ignore
+        strapi.log.info(`[StrapiBridge] Creating collection: singular=${actualSingular}, plural=${actualPlural}, display=${actualDisplayName}`);
         
         // UID format: api::singular.singular
         const uid = `api::${actualSingular}.${actualSingular}`;
@@ -138,6 +141,9 @@ export default {
         const uid = `api::${singularName}.${singularName}`;
 
         // @ts-ignore
+        strapi.log.info(`[StrapiBridge] Modifying collection: ${uid} (operation: ${operation})`);
+
+        // @ts-ignore
         const existingContentType = strapi.contentTypes[uid];
         if (!existingContentType) {
             return ctx.badRequest(`Collection "${uid}" does not exist. Create it first.`);
@@ -153,7 +159,7 @@ export default {
                 contentType: {
                     displayName: info.displayName || singularName,
                     singularName: info.singularName || singularName,
-                    pluralName: info.pluralName || `${singularName}s`,
+                    pluralName: info.pluralName || singularName,
                     kind: 'collectionType',
                     attributes: updatedAttributes,
                 },
@@ -234,7 +240,7 @@ export default {
                         contentType: {
                             displayName: data.displayName || info.displayName || singularName,
                             singularName: info.singularName || singularName,
-                            pluralName: info.pluralName || `${singularName}s`,
+                            pluralName: data.pluralName || info.pluralName || singularName,
                             description: data.description || info.description || '',
                             kind: 'collectionType',
                             attributes: existingAttributes,

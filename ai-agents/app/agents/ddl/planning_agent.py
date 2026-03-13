@@ -13,6 +13,7 @@ async def planning_agent(state: AgentState) -> AgentState:
     llm = ChatOpenAI(model="gpt-4o", temperature=0)
     reqs = state.get("requirements", {})
     field_registry = state.get("field_registry", {})
+    existing_collections = state.get("existing_collections", [])
     history = state.get("conversation_history", [])
     previous_plan = state.get("architecture_plan", {})
     stored_optional = state.get("optional_modules", [])
@@ -24,8 +25,20 @@ async def planning_agent(state: AgentState) -> AgentState:
             Your responsibility is to DESIGN or REVISE the high-level architecture of a database system.
             You must think like an experienced architect designing production systems used in real companies.
 
-            Your output will be used by another AI agent that generates the actual database schema.
-            Therefore your architecture plan must be logical, scalable, and complete.
+
+            --------------------------------------------------
+            AUTHORITATIVE CONTEXT: EXISTING SCHEMA
+            --------------------------------------------------
+
+            You will receive a list of "Existing Collections" currently in the database.
+            
+            This is the Authoritative Source of Truth for the current system state.
+            
+            Rules for handling Existing Schema:
+            1. NEVER recreate a table that already exists in 'existing_collections'.
+            2. If the user asks for a table that already exists, treat it as a "modification" or "expansion" requirement, NOT a new creation.
+            3. Always look for logical relationships between new entities you design and the entities already present in the database.
+            4. If you decide to add a relationship to an existing table, list that existing table as part of your architecture if it helps clarify the design, but mark it clearly if your format allows (or just ensure it is referenced).
 
 
             --------------------------------------------------
@@ -34,13 +47,13 @@ async def planning_agent(state: AgentState) -> AgentState:
 
             Before generating the architecture, reason internally through these steps:
 
-            1. Understand the business domain and system purpose.
-            2. Identify the core operational workflows.
-            3. Identify main domain entities.
-            4. Group entities into logical modules.
-            5. Add supporting entities required for real systems.
-            6. Detect optional modules that enhance the system.
-            7. Ensure the system is scalable and normalized.
+            1. Analyze the 'Existing Collections' to understand the current foundation.
+            2. Understand the new business requirements.
+            3. Identify which requirements are already satisfied by existing tables.
+            4. Identify new domain entities needed.
+            5. Determine how new entities connect to existing ones.
+            6. Group entities into logical modules (preserving existing ones).
+            7. Detect optional modules that enhance the system.
 
             Do NOT output this reasoning. Only output the final architecture plan.
 
@@ -51,6 +64,7 @@ async def planning_agent(state: AgentState) -> AgentState:
 
             You may receive:
 
+            • Existing Collections (Schema Memory)
             • Conversation History  
             • Requirements  
             • Previous Architecture Plan  
@@ -60,19 +74,15 @@ async def planning_agent(state: AgentState) -> AgentState:
 
             Handle them as follows:
 
-            If this is a NEW DESIGN:
-            • Build the architecture from scratch.
+            If this is a NEW DESIGN in an EXISTING DATABASE:
+            • Respect the existing collections.
+            • Only propose NEW entities or MODIFICATIONS to existing ones.
 
             If this is a REVISION:
             • Read the previous architecture plan and optional modules carefully.
             • Apply the user modification request.
             • If the user asks for 'the optional modules' or 'suggested tables', PROMOTE them from optional to core.
             • Improve or expand the architecture if needed.
-
-            If the user provides their OWN architecture:
-            • Respect their structure.
-            • Refine it professionally.
-            • Add missing entities if required.
 
 
             --------------------------------------------------
@@ -87,39 +97,12 @@ async def planning_agent(state: AgentState) -> AgentState:
             • Reusable reference entities  
             • Extensible design  
 
-            Modules should represent business capabilities such as:
 
-            Examples:
-
-            User Management  
-            Booking Management  
-            Order Processing  
-            Inventory Management  
-            Payments  
-            Analytics  
-            
             --------------------------------------------------
             ENTITY DESIGN GUIDELINES
             --------------------------------------------------
 
             Each module should contain multiple related entities.
-
-            Examples:
-
-            Booking Module may include:
-            • bookings
-            • booking_items
-            • booking_status_history
-
-            User Module may include:
-            • users
-            • roles
-            • permissions
-
-            Inventory Module may include:
-            • inventory_items
-            • suppliers
-            • stock_movements
 
             Systems should typically contain **10–30 tables** depending on complexity.
 
@@ -127,31 +110,11 @@ async def planning_agent(state: AgentState) -> AgentState:
 
 
             --------------------------------------------------
-            SUPPORTING ENTITIES
-            --------------------------------------------------
-
-            Real systems require supporting tables such as:
-
-            • logs  
-            • status history  
-            • transactions  
-            • audit records  
-            • analytics tables  
-            • notifications  
-            • media or attachments  
-
-            Add them when they make sense.
-
-
-            --------------------------------------------------
             FIELD REGISTRY USAGE
             --------------------------------------------------
 
             You will receive a Field Registry containing commonly used fields.
-
             Use it as inspiration to understand entity types and domain semantics.
-
-            Do NOT output fields here — only entities.
 
 
             --------------------------------------------------
@@ -162,28 +125,13 @@ async def planning_agent(state: AgentState) -> AgentState:
 
             You must interpret and apply the request intelligently.
 
-            Common scenarios:
+            1. If the user asks for a table that exists in 'existing_collections':
+               Intelligently respond that the table exists and propose adding the new required functionality to it.
 
-            1. If the user asks to ADD optional modules you suggested earlier:
-            Move those modules from "optional_modules" into the main "modules" section.
-
-            2. If the user asks to ADD more tables:
-            Expand the relevant module by adding additional entities.
-
-            3. If the user asks to IMPROVE the architecture:
-            Enhance modules by adding realistic supporting entities.
-
-            4. If the user provides their OWN module structure:
-            Respect it and refine it professionally.
-
-            5. If the user rejects the current design:
-            Rebuild the architecture from scratch based on the feedback.
-
-            6. If the user asks to add "those suggested tables" or "optional tables":
-            Check the 'Previously Suggested Optional Modules' and promote them.
+            2. If the user asks to add "those suggested tables":
+               Check the 'Previously Suggested Optional Modules' memory and promote them.
 
             Never ignore user modification requests.
-            Always update the architecture plan accordingly.
 
 
             --------------------------------------------------
@@ -211,13 +159,13 @@ async def planning_agent(state: AgentState) -> AgentState:
             STRICT RULES:
 
             • Do NOT include explanations.
-            • Do NOT include comments.
             • Do NOT include markdown.
             • Respond ONLY with valid JSON.
         """
     
     history_str = "\n".join([f"{m['role']}: {m['content']}" for m in history[-5:]])
     human_msg = (
+        f"Existing Collections in Database:\n{json.dumps(existing_collections, indent=2)}\n\n"
         f"Conversation History:\n{history_str}\n\n"
         f"Requirements: {json.dumps(reqs)}\n"
         f"Previous Architecture Plan: {json.dumps(previous_plan)}\n"

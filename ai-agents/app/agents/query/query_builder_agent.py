@@ -2,7 +2,6 @@ import json
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from app.graph.state import AgentState
-from app.utils.naming import to_strapi_slug, get_strapi_uid
 
 async def query_builder_agent(state: AgentState) -> AgentState:
     """
@@ -13,12 +12,14 @@ async def query_builder_agent(state: AgentState) -> AgentState:
 
     llm = ChatOpenAI(model="gpt-4o", temperature=0)
     schema_data = state.get("schema_data", {})
+    existing_collections = state.get("existing_collections", [])
     ddl_operation = state.get("ddl_operation", "DDL_CREATE_TABLE")
     operation = state.get("operation", "")
     
     state["execution_payloads"] = []
 
-    print("schema_data",schema_data)
+    print(f"schema_data: {schema_data}")
+    print(f"existing_collections count: {len(existing_collections)}")
 
     # ── 1. DDL_MODIFY_SCHEMA path ────────────────────────────────────
     if ddl_operation == "DDL_MODIFY_SCHEMA":
@@ -34,35 +35,64 @@ async def query_builder_agent(state: AgentState) -> AgentState:
         return state
 
     payloads = []
+    # Build a lookup set for existing singular names
+    # Safety: handle both list of strings (actual) and list of dicts (fallback)
+    existing_singulars = set()
+    for item in existing_collections:
+        if isinstance(item, str):
+            existing_singulars.add(item)
+        elif isinstance(item, dict):
+            existing_singulars.add(item.get("singular_name"))
+
     for table in tables:
         table_name = table.get("table_name", "untitled")
-        columns = table.get("columns", [])
-
-        # Direct metadata mapping from DesignerAgent
         singular = table.get("singular_name")
         plural = table.get("plural_name")
         slug = table.get("slug")
         display = table.get("display_name")
+        columns = table.get("columns", [])
 
-        # Minimal safety fallback (no naive singularization)
-        if not all([singular, plural, slug, display]):
-            slug = to_strapi_slug(table_name)
-            singular = slug
-            plural = slug
-            display = table_name.replace("_", " ").title()
+        # Absolute Authority Enforcement
+        if not singular or not plural or not slug or not display:
+            state["execution_error"] = f"Missing naming metadata for table '{table_name}'. Architect must provide singular_name, plural_name, slug, and display_name."
+            return state
 
-        # Pre-process columns: Resolve relation targets to full UIDs using schema names
+        # Final Safety Guard: Prevent duplicate creation if table exists in SchemaMemory
+        if singular in existing_singulars:
+            print(f"[QueryBuilder] SAFETY SKIP: Table '{singular}' already exists in database. Skipping creation.")
+            continue
+
+        if singular == plural:
+            state["execution_error"] = f"Naming conflict for table '{table_name}': singular_name and plural_name must be different (found '{singular}')."
+            return state
+
+        print(f"[QueryBuilder] Generating creation payload for '{singular}'...")
+
+        # Pre-process columns: Resolve relation targets to full UIDs
         processed_columns = []
         for col in columns:
             if col.get("type") == "relation" and col.get("target"):
-                # Try to find the target table's singular name in the schema
                 target_table = col["target"]
-                target_singular = to_strapi_slug(target_table) # fallback
+                target_singular = None
+                
+                # Search in current batch
                 for t in tables:
-                    if t.get("table_name") == target_table and t.get("singular_name"):
-                        target_singular = t["singular_name"]
+                    if t.get("table_name") == target_table or t.get("slug") == target_table:
+                        target_singular = t.get("singular_name")
                         break
-                col["target"] = get_strapi_uid(target_singular)
+                
+                # Search in existing collections (Schema Awareness)
+                if not target_singular:
+                    if target_table in existing_singulars:
+                        target_singular = target_table
+
+                if not target_singular:
+                    print(f"[QueryBuilder] RELATION ERROR: Could not resolve target '{target_table}'")
+                    state["execution_error"] = f"Relation Error: Could not resolve singular_name for target table '{target_table}'."
+                    return state
+
+                # Direct UID formatting using the authoritative singular_name
+                col["target"] = f"api::{target_singular}.{target_singular}"
             processed_columns.append(col)
 
         # Map to Strapi fields via LLM
@@ -85,7 +115,7 @@ async def query_builder_agent(state: AgentState) -> AgentState:
         })
 
     state["execution_payloads"] = payloads
-    print(f"[QueryBuilder] Generated {len(payloads)} creation payload(s).")
+    print(f"[QueryBuilder] Generated {len(payloads)} execution payload(s).")
     return state
 
 async def _handle_modify_schema_payload(state, llm, schema_data, operation) -> dict:
@@ -94,19 +124,20 @@ async def _handle_modify_schema_payload(state, llm, schema_data, operation) -> d
     # Metadata mapping if available
     singular = schema_data.get("singular_name")
     if not singular:
-        # Final fallback: lower-kebab the table name if no singular metadata
-        singular = to_strapi_slug(table_name)
+        state["execution_error"] = f"Missing 'singular_name' for operation '{operation}' on table '{table_name}'."
+        return None
+
+    print(f"[QueryBuilder] Modification '{operation}' on collection '{singular}'")
 
     if operation == "add_column":
         # Resolve UIDs for any new relations
         cols = schema_data.get("columns", [])
         for c in cols:
             if c.get("type") == "relation" and c.get("target"):
-                # For modifications, we might not have the full table list to look up UIDs.
-                # Use to_strapi_slug as a basic singular fallback for the target.
                 target_table = c["target"]
-                target_singular = to_strapi_slug(target_table)
-                c["target"] = get_strapi_uid(target_singular)
+                print(f"[QueryBuilder] Relation Target: {target_table}")
+                # We expect the target to be a known singular name (UID base)
+                c["target"] = f"api::{target_table}.{target_table}"
 
         system_prompt = "Convert to Strapi 'fields' array. Output ONLY JSON: {\"fields\": [...]}"
         human_msg = f"Columns: {json.dumps(cols)}"
@@ -121,6 +152,11 @@ async def _handle_modify_schema_payload(state, llm, schema_data, operation) -> d
         data = {"delete": True} if schema_data.get("delete") else {}
         if schema_data.get("new_display_name"):
             data["displayName"] = schema_data["new_display_name"]
+            
+        # Absolute Authority: Include pluralName update if provided
+        if schema_data.get("new_plural_name"):
+            data["pluralName"] = schema_data["new_plural_name"]
+            
         return {"operation": "update_collection", "collection": singular, "data": data}
 
     elif operation == "update_field":
