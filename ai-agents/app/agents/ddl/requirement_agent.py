@@ -34,6 +34,8 @@ async def requirement_agent(state: AgentState) -> AgentState:
         SystemMessage(content=system_prompt),
         HumanMessage(content=human_msg)
     ])
+
+    print("requirnment:",response)
     
     try:
         reqs = json.loads(response.content.strip().replace("```json", "").replace("```", ""))

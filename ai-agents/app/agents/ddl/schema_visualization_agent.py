@@ -189,6 +189,8 @@ async def schema_visualization_agent(state: AgentState) -> AgentState:
         HumanMessage(content=human_msg)
     ])
 
+    print("Schema Visulizer response:",response)
+
     state["response"] = response.content
     state["interaction_message"] = response.content
     return state

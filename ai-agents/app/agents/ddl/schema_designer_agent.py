@@ -17,6 +17,8 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
     previous_schema = state.get("schema_plan", {})
     user_modification = state.get("user_input", "") # For iterative modifications
     field_registry = state.get("field_registry")
+
+    print("field_registry",field_registry)
     
     system_prompt = """
             You are a world-class Senior Database Architect and Data Modeler responsible for designing production-grade database schemas.
@@ -88,13 +90,16 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
 
             For each entity you must generate:
 
-            1. table_name      → snake_case internal identifier
-            2. singular_name   → correct English singular form
+            1. slug            → kebab-case PRIMARY STRAPI IDENTIFIER (e.g. employee-leave)
+            2. singular_name   → snake_case database identifier (e.g. employee_leave)
             3. plural_name     → correct English plural form
-            4. slug            → kebab-case API identifier
+            4. table_name      → snake_case internal identifier
             5. display_name    → professional Title Case label
 
-            ALWAYS REMEMBER : singular_name AND plural_name ALWAYS DIFFERNRNT.
+            RULE: The 'slug' is the AUTHORITATIVE identity key for Strapi. It must be kebab-case. 
+            The system will use 'slug' for the folder name and the singularName in schema.json.
+
+            ALWAYS REMEMBER : singular_name AND plural_name ALWAYS DIFFERENT.
 
             Example:
 
@@ -104,6 +109,14 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
             plural_name   → categories  
             slug          → category  
             display_name  → Category  
+
+
+            Employee Leave
+
+            singular_name → employee-leave
+            plural_name   → employee-leaves
+            slug          → employee-leave
+            display_name  → Employee Leave
 
 
             Status
@@ -343,6 +356,8 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
         HumanMessage(content=human_msg)
     ])
     
+    print("Schema Designer respose:",response)
+
     try:
         schema = json.loads(response.content.strip().replace("```json", "").replace("```", ""))
         
@@ -362,8 +377,8 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
 
         state["schema_plan"] = schema
         state["schema_ready"] = True
-        print(f"[SchemaDesignerAgent] Generated {len(schema.get('tables', []))} tables with Absolute Naming Authority.")
-        print("Schemas:", state["schema_plan"])
+        print("Schemas:", schema)
+
     except Exception as e:
         print(f"[SchemaDesignerAgent] Error: {e}")
         state["schema_ready"] = False

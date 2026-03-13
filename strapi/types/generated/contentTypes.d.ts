@@ -430,129 +430,45 @@ export interface AdminUser extends Struct.CollectionTypeSchema {
   };
 }
 
-export interface ApiCourseCourse extends Struct.CollectionTypeSchema {
-  collectionName: 'courses';
+export interface ApiAddressAddress extends Struct.CollectionTypeSchema {
+  collectionName: 'addresses';
   info: {
-    displayName: 'Course';
-    pluralName: 'courses';
-    singularName: 'course';
+    displayName: 'Address';
+    pluralName: 'addresses';
+    singularName: 'address';
   };
   options: {
     draftAndPublish: false;
   };
   attributes: {
-    course_code: Schema.Attribute.String &
-      Schema.Attribute.Required &
-      Schema.Attribute.Unique;
-    course_name: Schema.Attribute.String &
-      Schema.Attribute.Required &
-      Schema.Attribute.Unique;
+    city: Schema.Attribute.String & Schema.Attribute.Required;
+    country: Schema.Attribute.String & Schema.Attribute.Required;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
-    credits: Schema.Attribute.Integer & Schema.Attribute.Required;
-    description: Schema.Attribute.Text;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
       'oneToMany',
-      'api::course.course'
+      'api::address.address'
     > &
       Schema.Attribute.Private;
+    postal_code: Schema.Attribute.String & Schema.Attribute.Required;
     publishedAt: Schema.Attribute.DateTime;
-    status: Schema.Attribute.Enumeration<[]> &
-      Schema.Attribute.Required &
-      Schema.Attribute.DefaultTo<'active'>;
+    state: Schema.Attribute.String & Schema.Attribute.Required;
+    street: Schema.Attribute.String & Schema.Attribute.Required;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+    user: Schema.Attribute.Relation<'manyToOne', 'api::user.user'>;
   };
 }
 
-export interface ApiEmployeeEmployee extends Struct.CollectionTypeSchema {
-  collectionName: 'employees';
+export interface ApiMenuMenu extends Struct.CollectionTypeSchema {
+  collectionName: 'menus';
   info: {
-    displayName: 'Employee';
-    pluralName: 'employees';
-    singularName: 'employee';
-  };
-  options: {
-    draftAndPublish: false;
-  };
-  attributes: {
-    createdAt: Schema.Attribute.DateTime;
-    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-    department: Schema.Attribute.String;
-    email: Schema.Attribute.Email &
-      Schema.Attribute.Required &
-      Schema.Attribute.Unique;
-    first_name: Schema.Attribute.String & Schema.Attribute.Required;
-    hire_date: Schema.Attribute.Date & Schema.Attribute.Required;
-    job_title: Schema.Attribute.String & Schema.Attribute.Required;
-    last_name: Schema.Attribute.String & Schema.Attribute.Required;
-    locale: Schema.Attribute.String & Schema.Attribute.Private;
-    localizations: Schema.Attribute.Relation<
-      'oneToMany',
-      'api::employee.employee'
-    > &
-      Schema.Attribute.Private;
-    phone_number: Schema.Attribute.String;
-    publishedAt: Schema.Attribute.DateTime;
-    salary: Schema.Attribute.Decimal;
-    status: Schema.Attribute.Enumeration<[]> &
-      Schema.Attribute.Required &
-      Schema.Attribute.DefaultTo<'active'>;
-    updatedAt: Schema.Attribute.DateTime;
-    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-  };
-}
-
-export interface ApiFacultyFaculty extends Struct.CollectionTypeSchema {
-  collectionName: 'faculties';
-  info: {
-    displayName: 'Faculty';
-    pluralName: 'faculties';
-    singularName: 'faculty';
-  };
-  options: {
-    draftAndPublish: false;
-  };
-  attributes: {
-    createdAt: Schema.Attribute.DateTime;
-    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-    department: Schema.Attribute.String & Schema.Attribute.Required;
-    email: Schema.Attribute.Email &
-      Schema.Attribute.Required &
-      Schema.Attribute.Unique;
-    fieldName: Schema.Attribute.Relation<'oneToMany', 'api::course.course'>;
-    first_name: Schema.Attribute.String & Schema.Attribute.Required;
-    hire_date: Schema.Attribute.Date & Schema.Attribute.Required;
-    last_name: Schema.Attribute.String & Schema.Attribute.Required;
-    locale: Schema.Attribute.String & Schema.Attribute.Private;
-    localizations: Schema.Attribute.Relation<
-      'oneToMany',
-      'api::faculty.faculty'
-    > &
-      Schema.Attribute.Private;
-    phone: Schema.Attribute.String;
-    publishedAt: Schema.Attribute.DateTime;
-    status: Schema.Attribute.Enumeration<[]> &
-      Schema.Attribute.Required &
-      Schema.Attribute.DefaultTo<'active'>;
-    updatedAt: Schema.Attribute.DateTime;
-    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-  };
-}
-
-export interface ApiSemesterSemester extends Struct.CollectionTypeSchema {
-  collectionName: 'semesters';
-  info: {
-    displayName: 'Semester';
-    pluralName: 'semesters';
-    singularName: 'semester';
+    displayName: 'Menu';
+    pluralName: 'menus';
+    singularName: 'menu';
   };
   options: {
     draftAndPublish: false;
@@ -562,22 +478,50 @@ export interface ApiSemesterSemester extends Struct.CollectionTypeSchema {
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
     description: Schema.Attribute.Text;
-    end_date: Schema.Attribute.Date & Schema.Attribute.Required;
-    fieldName: Schema.Attribute.Relation<'oneToMany', 'api::course.course'>;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<'oneToMany', 'api::menu.menu'> &
+      Schema.Attribute.Private;
+    price: Schema.Attribute.Decimal & Schema.Attribute.Required;
+    publishedAt: Schema.Attribute.DateTime;
+    restaurant: Schema.Attribute.Relation<
+      'manyToOne',
+      'api::restaurant.restaurant'
+    >;
+    title: Schema.Attribute.String & Schema.Attribute.Required;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
+export interface ApiRestaurantRestaurant extends Struct.CollectionTypeSchema {
+  collectionName: 'restaurants';
+  info: {
+    displayName: 'Restaurant';
+    pluralName: 'restaurants';
+    singularName: 'restaurant';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    address: Schema.Attribute.Relation<'oneToOne', 'api::address.address'>;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    description: Schema.Attribute.Text;
+    email: Schema.Attribute.Email;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
       'oneToMany',
-      'api::semester.semester'
+      'api::restaurant.restaurant'
     > &
       Schema.Attribute.Private;
     name: Schema.Attribute.String &
       Schema.Attribute.Required &
       Schema.Attribute.Unique;
+    phone_number: Schema.Attribute.String;
     publishedAt: Schema.Attribute.DateTime;
-    start_date: Schema.Attribute.Date & Schema.Attribute.Required;
-    status: Schema.Attribute.Enumeration<[]> &
-      Schema.Attribute.Required &
-      Schema.Attribute.DefaultTo<'upcoming'>;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -595,9 +539,11 @@ export interface ApiStudentStudent extends Struct.CollectionTypeSchema {
     draftAndPublish: false;
   };
   attributes: {
+    address: Schema.Attribute.Relation<'manyToOne', 'api::address.address'>;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+    date_of_birth: Schema.Attribute.Date & Schema.Attribute.Required;
     email: Schema.Attribute.Email &
       Schema.Attribute.Required &
       Schema.Attribute.Unique;
@@ -617,6 +563,41 @@ export interface ApiStudentStudent extends Struct.CollectionTypeSchema {
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+  };
+}
+
+export interface ApiUserUser extends Struct.CollectionTypeSchema {
+  collectionName: 'users';
+  info: {
+    displayName: 'User';
+    pluralName: 'users';
+    singularName: 'user';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    email: Schema.Attribute.Email &
+      Schema.Attribute.Required &
+      Schema.Attribute.Unique;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<'oneToMany', 'api::user.user'> &
+      Schema.Attribute.Private;
+    password: Schema.Attribute.Password & Schema.Attribute.Required;
+    phone_number: Schema.Attribute.String;
+    publishedAt: Schema.Attribute.DateTime;
+    status: Schema.Attribute.Enumeration<[]> &
+      Schema.Attribute.Required &
+      Schema.Attribute.DefaultTo<'active'>;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    username: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.Unique;
   };
 }
 
@@ -1131,11 +1112,11 @@ declare module '@strapi/strapi' {
       'admin::transfer-token': AdminTransferToken;
       'admin::transfer-token-permission': AdminTransferTokenPermission;
       'admin::user': AdminUser;
-      'api::course.course': ApiCourseCourse;
-      'api::employee.employee': ApiEmployeeEmployee;
-      'api::faculty.faculty': ApiFacultyFaculty;
-      'api::semester.semester': ApiSemesterSemester;
+      'api::address.address': ApiAddressAddress;
+      'api::menu.menu': ApiMenuMenu;
+      'api::restaurant.restaurant': ApiRestaurantRestaurant;
       'api::student.student': ApiStudentStudent;
+      'api::user.user': ApiUserUser;
       'plugin::content-releases.release': PluginContentReleasesRelease;
       'plugin::content-releases.release-action': PluginContentReleasesReleaseAction;
       'plugin::i18n.locale': PluginI18NLocale;

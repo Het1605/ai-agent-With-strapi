@@ -11,26 +11,27 @@
     "first_name": {
       "type": "string",
       "required": true,
-      "unique": false,
-      "default": null
+      "unique": false
     },
     "last_name": {
       "type": "string",
       "required": true,
-      "unique": false,
-      "default": null
+      "unique": false
     },
     "email": {
       "type": "email",
       "required": true,
-      "unique": true,
-      "default": null
+      "unique": true
+    },
+    "date_of_birth": {
+      "type": "date",
+      "required": true,
+      "unique": false
     },
     "enrollment_date": {
       "type": "date",
       "required": true,
-      "unique": false,
-      "default": null
+      "unique": false
     },
     "status": {
       "type": "enumeration",
@@ -38,6 +39,11 @@
       "unique": false,
       "default": "active",
       "enum": []
+    },
+    "address": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::address.address"
     }
   }
 }

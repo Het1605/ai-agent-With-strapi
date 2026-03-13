@@ -18,6 +18,7 @@ async def planning_agent(state: AgentState) -> AgentState:
     previous_plan = state.get("architecture_plan", {})
     stored_optional = state.get("optional_modules", [])
     user_modification = state.get("user_input", "") # The latest feedback
+
     
     system_prompt = """
             You are a world-class Enterprise Database Architect and System Designer.
@@ -178,12 +179,14 @@ async def planning_agent(state: AgentState) -> AgentState:
         SystemMessage(content=system_prompt),
         HumanMessage(content=human_msg)
     ])
+
+    print("planner agent response:", response)
     
     try:
         plan = json.loads(response.content.strip().replace("```json", "").replace("```", ""))
         state["architecture_plan"] = plan
         state["optional_modules"] = plan.get("optional_modules", [])
-        print(f"[PlanningAgent] Modules suggested: {len(plan.get('modules', []))} core, {len(plan.get('optional_modules', []))} optional.")
+        print("Fetch Plan:",plan)
     except Exception as e:
         print(f"[PlanningAgent] Error: {e}")
         state["architecture_plan"] = {
