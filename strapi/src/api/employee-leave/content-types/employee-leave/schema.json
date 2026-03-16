@@ -6,41 +6,11 @@
     "pluralName": "employee-leaves",
     "displayName": "Employee Leave"
   },
-  "options": {},
+  "options": {
+    "draftAndPublish": false
+  },
   "pluginOptions": {},
   "attributes": {
-    "leave_type": {
-      "type": "enumeration",
-      "required": true,
-      "enum": [
-        "sick",
-        "vacation",
-        "personal",
-        "maternity",
-        "paternity",
-        "bereavement"
-      ]
-    },
-    "start_date": {
-      "type": "date",
-      "required": true
-    },
-    "end_date": {
-      "type": "date",
-      "required": true
-    },
-    "approval_date": {
-      "type": "date"
-    },
-    "comments": {
-      "type": "text"
-    },
-    "createdAt": {
-      "type": "datetime"
-    },
-    "updatedAt": {
-      "type": "datetime"
-    },
     "publishedAt": {
       "type": "datetime",
       "configurable": false,
@@ -88,6 +58,18 @@
         "referencedColumn": "document_id",
         "referencedTable": "employee_leaves"
       }
+    },
+    "leave_type": {
+      "type": "enumeration",
+      "required": true,
+      "enum": [
+        "sick",
+        "vacation",
+        "personal",
+        "maternity",
+        "paternity",
+        "bereavement"
+      ]
     }
   }
 }

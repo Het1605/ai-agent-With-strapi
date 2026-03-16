@@ -442,12 +442,9 @@ export interface ApiEmployeeLeaveEmployeeLeave
     draftAndPublish: false;
   };
   attributes: {
-    approval_date: Schema.Attribute.Date;
-    comments: Schema.Attribute.Text;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
-    end_date: Schema.Attribute.Date & Schema.Attribute.Required;
     leave_type: Schema.Attribute.Enumeration<
       ['sick', 'vacation', 'personal', 'maternity', 'paternity', 'bereavement']
     > &
@@ -459,7 +456,6 @@ export interface ApiEmployeeLeaveEmployeeLeave
     > &
       Schema.Attribute.Private;
     publishedAt: Schema.Attribute.DateTime;
-    start_date: Schema.Attribute.Date & Schema.Attribute.Required;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -480,13 +476,6 @@ export interface ApiEmployeeEmployee extends Struct.CollectionTypeSchema {
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
-    department: Schema.Attribute.String;
-    email: Schema.Attribute.Email &
-      Schema.Attribute.Required &
-      Schema.Attribute.Unique;
-    first_name: Schema.Attribute.String & Schema.Attribute.Required;
-    hire_date: Schema.Attribute.Date;
-    is_active: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<true>;
     last_name: Schema.Attribute.String & Schema.Attribute.Required;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
@@ -494,13 +483,35 @@ export interface ApiEmployeeEmployee extends Struct.CollectionTypeSchema {
       'api::employee.employee'
     > &
       Schema.Attribute.Private;
-    phone_number: Schema.Attribute.String;
     position: Schema.Attribute.String;
     publishedAt: Schema.Attribute.DateTime;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
-    work_related: Schema.Attribute.String;
+  };
+}
+
+export interface ApiOrderOrder extends Struct.CollectionTypeSchema {
+  collectionName: 'orders';
+  info: {
+    displayName: 'Order';
+    pluralName: 'orders';
+    singularName: 'order';
+  };
+  options: {
+    draftAndPublish: true;
+  };
+  attributes: {
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<'oneToMany', 'api::order.order'> &
+      Schema.Attribute.Private;
+    publishedAt: Schema.Attribute.DateTime;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
   };
 }
 
@@ -560,19 +571,13 @@ export interface ApiStudentStudent extends Struct.CollectionTypeSchema {
     email: Schema.Attribute.Email &
       Schema.Attribute.Required &
       Schema.Attribute.Unique;
-    first_name: Schema.Attribute.String;
-    last_name: Schema.Attribute.String;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
       'oneToMany',
       'api::student.student'
     > &
       Schema.Attribute.Private;
-    phone_number: Schema.Attribute.String;
     publishedAt: Schema.Attribute.DateTime;
-    student_id: Schema.Attribute.String &
-      Schema.Attribute.Required &
-      Schema.Attribute.Unique;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -1092,6 +1097,7 @@ declare module '@strapi/strapi' {
       'admin::user': AdminUser;
       'api::employee-leave.employee-leave': ApiEmployeeLeaveEmployeeLeave;
       'api::employee.employee': ApiEmployeeEmployee;
+      'api::order.order': ApiOrderOrder;
       'api::product.product': ApiProductProduct;
       'api::student.student': ApiStudentStudent;
       'plugin::content-releases.release': PluginContentReleasesRelease;

@@ -358,19 +358,68 @@ export default {
                 responseFields[type] = Array.from(fieldMap[type]);
             }
 
-            // Get list of all collection UIDs
-            const collections = Object.keys(contentTypes)
-                .filter(uid => uid.startsWith('api::'))
-                .map(uid => uid.split('.')[1]); // Extract 'employee' from 'api::employee.employee'
+            // Get list of all collection UIDs and names
+            const collection_uids = Object.keys(contentTypes).filter(uid => uid.startsWith('api::'));
+            const collections = collection_uids.map(uid => uid.split('.')[1]); // Extract 'employee' from 'api::employee.employee'
 
             return ctx.send({
                 fields: responseFields,
-                collections
+                collections,
+                collection_uids
             });
         } catch (error: any) {
             // @ts-ignore
             strapi.log.error('Field Registry Error:', error);
             return ctx.internalServerError(`Failed to retrieve field registry: ${error.message}`);
+        }
+    },
+
+    async listContentTypes(ctx: any) {
+        try {
+            // @ts-ignore
+            const contentTypes = strapi.contentTypes;
+            const collections = [];
+
+            for (const uid in contentTypes) {
+                if (uid.startsWith('api::')) {
+                    const ct = contentTypes[uid];
+                    collections.push({
+                        uid: uid,
+                        name: ct.info.singularName,
+                        displayName: ct.info.displayName
+                    });
+                }
+            }
+
+            return ctx.send({ collections });
+        } catch (error: any) {
+            // @ts-ignore
+            strapi.log.error('listContentTypes error:', error);
+            return ctx.internalServerError(`Failed to list content types: ${error.message}`);
+        }
+    },
+
+    async getContentTypeSchema(ctx: any) {
+        try {
+            const { name } = ctx.params;
+            const actualName = name.toLowerCase();
+            const uid = `api::${actualName}.${actualName}`;
+
+            // @ts-ignore
+            const ct = strapi.contentTypes[uid];
+            if (!ct) {
+                return ctx.notFound(`Content type "${uid}" not found`);
+            }
+
+            return ctx.send({
+                name: ct.info.singularName,
+                displayName: ct.info.displayName,
+                attributes: ct.attributes
+            });
+        } catch (error: any) {
+            // @ts-ignore
+            strapi.log.error('getContentTypeSchema error:', error);
+            return ctx.internalServerError(`Failed to get content type schema: ${error.message}`);
         }
     },
 };

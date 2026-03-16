@@ -6,43 +6,11 @@
     "pluralName": "employees",
     "displayName": "Employee"
   },
-  "options": {},
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
   "attributes": {
-    "first_name": {
-      "type": "string",
-      "required": true
-    },
-    "last_name": {
-      "type": "string",
-      "required": true
-    },
-    "email": {
-      "type": "email",
-      "required": true,
-      "unique": true
-    },
-    "position": {
-      "type": "string"
-    },
-    "department": {
-      "type": "string"
-    },
-    "is_active": {
-      "type": "boolean",
-      "default": true
-    },
-    "phone_number": {
-      "type": "string"
-    },
-    "hire_date": {
-      "type": "date"
-    },
-    "createdAt": {
-      "type": "datetime"
-    },
-    "updatedAt": {
-      "type": "datetime"
-    },
     "publishedAt": {
       "type": "datetime",
       "configurable": false,
@@ -91,11 +59,12 @@
         "referencedTable": "employees"
       }
     },
-    "work_related": {
+    "last_name": {
       "type": "string",
-      "required": false,
-      "unique": false,
-      "default": null
+      "required": true
+    },
+    "position": {
+      "type": "string"
     }
   }
 }

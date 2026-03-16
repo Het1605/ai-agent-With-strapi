@@ -6,7 +6,9 @@
     "pluralName": "students",
     "displayName": "Student"
   },
-  "options": {},
+  "options": {
+    "draftAndPublish": false
+  },
   "pluginOptions": {},
   "attributes": {
     "publishedAt": {
@@ -57,12 +59,6 @@
         "referencedTable": "students"
       }
     },
-    "createdAt": {
-      "type": "datetime"
-    },
-    "updatedAt": {
-      "type": "datetime"
-    },
     "email": {
       "type": "email",
       "required": true,
@@ -70,26 +66,6 @@
     },
     "date_of_birth": {
       "type": "date"
-    },
-    "phone_number": {
-      "type": "string"
-    },
-    "student_id": {
-      "type": "string",
-      "required": true,
-      "unique": true
-    },
-    "first_name": {
-      "type": "string",
-      "required": false,
-      "unique": false,
-      "default": null
-    },
-    "last_name": {
-      "type": "string",
-      "required": false,
-      "unique": false,
-      "default": null
     }
   }
 }

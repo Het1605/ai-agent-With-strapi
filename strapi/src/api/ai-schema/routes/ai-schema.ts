@@ -30,5 +30,25 @@ export default {
                 middlewares: [],
             },
         },
+        {
+            method: "GET",
+            path: "/ai-schema/list-content-types",
+            handler: "ai-schema.listContentTypes",
+            config: {
+                auth: false,
+                policies: [],
+                middlewares: [],
+            },
+        },
+        {
+            method: "GET",
+            path: "/ai-schema/content-type-schema/:name",
+            handler: "ai-schema.getContentTypeSchema",
+            config: {
+                auth: false,
+                policies: [],
+                middlewares: [],
+            },
+        },
     ],
 };
