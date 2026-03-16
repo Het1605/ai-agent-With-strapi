@@ -98,6 +98,8 @@ async def schema_optimizer_agent(state: AgentState) -> AgentState:
     ]
 
     response = await llm.ainvoke(messages)
+
+    print("Optimizer response:", response)
     
     try:
         # Strip markdown code blocks if present

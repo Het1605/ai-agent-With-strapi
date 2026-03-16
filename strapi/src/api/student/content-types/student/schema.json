@@ -1,0 +1,51 @@
+{
+  "kind": "collectionType",
+  "collectionName": "students",
+  "info": {
+    "singularName": "student",
+    "pluralName": "students",
+    "displayName": "Student"
+  },
+  "options": {},
+  "attributes": {
+    "first_name": {
+      "type": "string",
+      "required": true
+    },
+    "last_name": {
+      "type": "string",
+      "required": true
+    },
+    "email": {
+      "type": "email",
+      "required": true,
+      "unique": true
+    },
+    "date_of_birth": {
+      "type": "date"
+    },
+    "enrollment_date": {
+      "type": "date"
+    },
+    "status": {
+      "type": "enumeration",
+      "required": true,
+      "enum": [
+        "active",
+        "inactive",
+        "graduated"
+      ]
+    },
+    "phone_number": {
+      "type": "string"
+    },
+    "address": {
+      "type": "text"
+    },
+    "student_id": {
+      "type": "string",
+      "required": true,
+      "unique": true
+    }
+  }
+}

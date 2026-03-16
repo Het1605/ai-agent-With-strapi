@@ -9,15 +9,16 @@ from app.agents.conversation.general_qa_agent import general_qa_agent
 from app.agents.planner.intent_router_agent import intent_router_agent
 from app.agents.ddl.ddl_router_agent import ddl_router_agent
 from app.agents.dml.dml_router_agent import dml_router_agent
-from app.agents.ddl.requirement_agent import requirement_agent
-from app.agents.ddl.planning_agent import planning_agent
-from app.agents.ddl.schema_designer_agent import schema_designer_agent
-from app.agents.ddl.modify_schema_agent import modify_schema_agent
-from app.agents.ddl.add_column_agent import add_column_agent
-from app.agents.ddl.update_collection_agent import update_collection_agent
-from app.agents.ddl.update_field_agent import update_field_agent
-from app.agents.ddl.delete_field_agent import delete_field_agent
-from app.agents.interaction.interaction_planner_agent import interaction_planner_agent
+from app.agents.ddl.CreateTableAgents.requirement_agent import requirement_agent
+from app.agents.ddl.CreateTableAgents.planning_agent import planning_agent
+from app.agents.ddl.CreateTableAgents.schema_designer_agent import schema_designer_agent
+from app.agents.ddl.ModifySchemaAgents.modify_schema_intent_agent import modify_schema_intent_agent
+from app.agents.ddl.ModifySchemaAgents.schema_planner_agent import schema_planner_agent as modify_schema_planner_agent
+from app.agents.ddl.ModifySchemaAgents.schema_designer_agent import schema_designer_agent as modify_schema_designer_agent
+from app.agents.ddl.ModifySchemaAgents.modify_schema_visualization_agent import modify_schema_visualization_agent
+from app.agents.ddl.ModifySchemaAgents.user_approval_agent import user_approval_agent as modify_schema_user_approval_agent
+from app.agents.ddl.ModifySchemaAgents.approval_decision_agent import approval_decision_agent as modify_schema_approval_decision_agent
+from app.agents.ddl.ModifySchemaAgents.user_reprompt_agent import user_reprompt_agent as modify_schema_user_reprompt_agent
 from app.agents.query.query_builder_agent import query_builder_agent
 from app.agents.execution.execution_agent import execution_agent
 from app.agents.error_handling_agents.execution_monitor_agent import execution_monitor_agent
@@ -30,88 +31,25 @@ from app.agents.error_handling_agents.error_recovery_agent import error_recovery
 from app.agents.error_handling_agents.retry_execution_agent import retry_execution_agent
 from app.agents.response.response_formatter_agent import response_formatter_agent
 from app.agents.routing.state_router_agent import state_router_agent
-from app.agents.ddl.schema_visualization_agent import schema_visualization_agent
-from app.agents.ddl.schema_optimizer_agent import schema_optimizer_agent
-from app.agents.interaction.user_approval_agent import user_approval_agent
-from app.agents.interaction.user_reprompt_agent import user_reprompt_agent
-from app.agents.routing.approval_decision_router import approval_decision_router
-from app.agents.ddl.schema_execution_planner_agent import schema_execution_planner_agent
+from app.agents.ddl.CreateTableAgents.schema_visualization_agent import schema_visualization_agent
+from app.agents.ddl.CreateTableAgents.schema_optimizer_agent import schema_optimizer_agent
+from app.agents.ddl.CreateTableAgents.user_approval_agent import user_approval_agent
+from app.agents.ddl.CreateTableAgents.user_reprompt_agent import user_reprompt_agent
+from app.agents.ddl.CreateTableAgents.approval_decision_agent import approval_decision_router
+from app.agents.ddl.CreateTableAgents.schema_execution_planner_agent import schema_execution_planner_agent
 from app.memory.memory_manager import memory_manager
-
-def router_validation(state: AgentState):
-    """
-    Routes based on validation success.
-    """
-    if state["validation_results"].get("input_validation", {}).get("is_valid") == False:
-        return "formatter"
-    return "classifier"
-
-def router_scope(state: AgentState):
-    """
-    Routes based on determined scope.
-    """
-    scope = state.get("scope")
-    if scope == "conversation":
-        return "conversation"
-    elif scope == "database":
-        return "intent_router"
-    else:
-        return "general_qa"
-
-def router_intent_category(state: AgentState):
-    """
-    AI-driven conditional mapping from intent category to specialized router.
-    """
-    category = state.get("intent_category", "")
-    if category == "DDL":
-        return "ddl_router"
-    elif category == "DML":
-        return "dml_router"
-    else:
-        return "formatter"
-
-def router_ddl_completion(state: AgentState):
-    """
-    Routes based on whether the DDL schema data is complete.
-    Shared by both CreateTableAgent and ModifySchemaAgent.
-    """
-    if state.get("schema_ready") == True:
-        return "query_builder"
-    return "interaction_planner"
-
-def router_ddl_operation(state: AgentState):
-    """
-    Routes from DDLRouterAgent to the correct DDL agent based on ddl_operation.
-    """
-    op = state.get("ddl_operation", "DDL_CREATE_TABLE")
-    if op == "DDL_MODIFY_SCHEMA":
-        return "modify_schema"
-    return "requirement"
-
-def router_modify_schema_operation(state: AgentState):
-    """
-    Routes from ModifySchemaAgent (classifier) to the correct sub-agent
-    based on state['operation'] written by ModifySchemaAgent.
-    """
-    op = state.get("operation")
-    allowed = {"add_column", "update_collection", "update_field", "delete_field"}
-    if op not in allowed:
-        print(f"[router_modify_schema_operation] Unknown operation '{op}' — defaulting to 'add_column'")
-        return "add_column"
-    print(f"[router_modify_schema_operation] Routing to '{op}'")
-    return op
-
-def router_error_classifier(state: AgentState):
-    """
-    Routes from ErrorClassifierAgent based on diagnostic findings.
-    If execution_error exists, routes to recovery. Otherwise, proceeds to formatter.
-    """
-    if state.get("execution_error"):
-        return "error_recovery"
-    return "formatter"
-
+from app.graph.router import (
+    router_validation,
+    router_scope,
+    router_intent_category,
+    router_ddl_operation,
+    router_error_classifier,
+    router_approval_decision,
+    router_modify_schema_approval
+)
 
 def create_workflow():
+
     """
     Builds the production-grade LangGraph workflow with AI-driven multi-agent routing.
     """
@@ -130,12 +68,13 @@ def create_workflow():
     workflow.add_node("requirement", requirement_agent)
     workflow.add_node("planning", planning_agent)
     workflow.add_node("schema_designer", schema_designer_agent)
-    workflow.add_node("modify_schema", modify_schema_agent)   # classifier/router
-    workflow.add_node("add_column", add_column_agent)
-    workflow.add_node("update_collection", update_collection_agent)
-    workflow.add_node("update_field", update_field_agent)
-    workflow.add_node("delete_field", delete_field_agent)
-    workflow.add_node("interaction_planner", interaction_planner_agent)
+    workflow.add_node("modify_schema_intent", modify_schema_intent_agent)
+    workflow.add_node("modify_schema_planner", modify_schema_planner_agent)
+    workflow.add_node("modify_schema_designer", modify_schema_designer_agent)
+    workflow.add_node("modify_schema_visualization", modify_schema_visualization_agent)
+    workflow.add_node("modify_schema_user_approval", modify_schema_user_approval_agent)
+    workflow.add_node("modify_schema_approval_decision", modify_schema_approval_decision_agent)
+    workflow.add_node("modify_schema_user_reprompt", modify_schema_user_reprompt_agent)
     workflow.add_node("query_builder", query_builder_agent)
     workflow.add_node("execution", execution_agent)
     workflow.add_node("execution_monitor", execution_monitor_agent)
@@ -196,13 +135,12 @@ def create_workflow():
     )
     
     # DDL Specialized Sub-flow
-    # DDLRouterAgent → CREATE or MODIFY branch
     workflow.add_conditional_edges(
         "ddl_router",
         router_ddl_operation,
         {
             "requirement":  "requirement",
-            "modify_schema": "modify_schema",
+            "modify_schema_intent": "modify_schema_intent",
         }
     )
 
@@ -216,16 +154,7 @@ def create_workflow():
     # After HIB Interrupt resumes:
     workflow.add_edge("user_approval", "approval_decision")
     
-    # Approval Decision Router Branches:
-    def router_approval_decision(state: AgentState):
-        status = state.get("approval_status", "INVALID")
-        if status == "APPROVE":
-            return "schema_execution_planner"
-        elif status == "MODIFY":
-            return "planning"
-        else:
-            return "user_reprompt" # Use the reprompter to set response then pause
-
+    # Approval Decision Router Branches (Create path):
     workflow.add_conditional_edges(
         "approval_decision",
         router_approval_decision,
@@ -240,33 +169,23 @@ def create_workflow():
 
     workflow.add_edge("schema_execution_planner", "query_builder")
 
-    # ModifySchemaAgent (classifier) routes to one of the 4 sub-agents
+    # Modify Schema Path
+    workflow.add_edge("modify_schema_intent", "modify_schema_planner")
+    workflow.add_edge("modify_schema_planner", "modify_schema_designer")
+    workflow.add_edge("modify_schema_designer", "modify_schema_visualization")
+    workflow.add_edge("modify_schema_visualization", "modify_schema_user_approval")
+    workflow.add_edge("modify_schema_user_approval", "modify_schema_approval_decision")
+
     workflow.add_conditional_edges(
-        "modify_schema",
-        router_modify_schema_operation,
+        "modify_schema_approval_decision",
+        router_modify_schema_approval,
         {
-            "add_column":        "add_column",
-            "update_collection": "update_collection",
-            "update_field":      "update_field",
-            "delete_field":      "delete_field",
+            "query_builder": "query_builder",
+            "modify_schema_planner": "modify_schema_planner",
+            "modify_schema_user_reprompt": "modify_schema_user_reprompt"
         }
     )
-
-    # Each sub-agent shares the same completion router
-    for sub_agent in ["add_column", "update_collection", "update_field", "delete_field"]:
-        workflow.add_conditional_edges(
-            sub_agent,
-            router_ddl_completion,
-            {
-                "interaction_planner": "interaction_planner",
-                "query_builder":       "query_builder"
-            }
-        )
-    
-    # InteractionPlannerAgent has already written the question into state["response"].
-    # Terminate the graph here so the question is returned to the user.
-    # On the NEXT user turn, router_interaction_phase will route directly to create_table.
-    workflow.add_edge("interaction_planner", END)
+    workflow.add_edge("modify_schema_user_reprompt", "modify_schema_user_approval")
     
     workflow.add_edge("query_builder", "execution")
     workflow.add_edge("execution", "formatter")

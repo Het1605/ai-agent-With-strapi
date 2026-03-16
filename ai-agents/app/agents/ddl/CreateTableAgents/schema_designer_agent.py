@@ -91,7 +91,7 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
             For each entity you must generate:
 
             1. slug            → kebab-case PRIMARY STRAPI IDENTIFIER (e.g. employee-leave)
-            2. singular_name   → snake_case database identifier (e.g. employee_leave)
+            2. singular_name   → snake-case database identifier (e.g. employee-leave)
             3. plural_name     → correct English plural form
             4. table_name      → snake_case internal identifier
             5. display_name    → professional Title Case label
@@ -118,6 +118,7 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
             slug          → employee-leave
             display_name  → Employee Leave
 
+            Note: if the table/collection name is more then two words then you separate names with - not underscore(_).means in singular_name and plural_name not use underscore(_) anytime.
 
             Status
 

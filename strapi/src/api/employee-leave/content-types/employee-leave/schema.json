@@ -1,0 +1,60 @@
+{
+  "kind": "collectionType",
+  "collectionName": "employee_leaves",
+  "info": {
+    "singularName": "employee-leave",
+    "pluralName": "employee-leaves",
+    "displayName": "Employee Leave"
+  },
+  "options": {},
+  "attributes": {
+    "leave_type": {
+      "type": "enumeration",
+      "required": true,
+      "enum": [
+        "sick",
+        "vacation",
+        "personal",
+        "maternity",
+        "paternity",
+        "bereavement"
+      ]
+    },
+    "start_date": {
+      "type": "date",
+      "required": true
+    },
+    "end_date": {
+      "type": "date",
+      "required": true
+    },
+    "reason": {
+      "type": "text"
+    },
+    "status": {
+      "type": "enumeration",
+      "required": true,
+      "enum": [
+        "pending",
+        "approved",
+        "rejected"
+      ]
+    },
+    "employee_id": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::employee.employee",
+      "required": true
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true
+    },
+    "approval_date": {
+      "type": "date"
+    },
+    "comments": {
+      "type": "text"
+    }
+  }
+}
