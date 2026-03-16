@@ -82,7 +82,12 @@ async def modify_schema_intent_agent(state: AgentState) -> AgentState:
         
         # Parse the JSON array
         content = response.content.replace("```json", "").replace("```", "").strip()
+
+        print("Intent_agent:",content)
+
         operations = json.loads(content)
+
+        print("operations:",operations)
         
         if not isinstance(operations, list):
             print("[ModifySchemaIntentAgent] Warning: Output was not a list. Defaulting to empty list.")

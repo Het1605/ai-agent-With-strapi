@@ -130,7 +130,7 @@ export default {
 
         // ── Validate common required fields ───────────────────────────
         if (!operation) {
-            return ctx.badRequest('"operation" is required. Supported: add_column, update_collection, update_field, delete_field');
+            return ctx.badRequest('"operation" is required. Supported: add_column, update_collection, update_column, delete_column');
         }
         if (!collection) {
             return ctx.badRequest('"collection" is required');
@@ -260,16 +260,16 @@ export default {
                 }
 
 
-                // ── 3. UPDATE FIELD ───────────────────────────────────
-                case 'update_field': {
+                // ── 3. UPDATE COLUMN ───────────────────────────────────
+                case 'update_column': {
                     const fieldName = data.field;
                     const updates = data.updates;
 
                     if (!fieldName) {
-                        return ctx.badRequest('"data.field" is required for update_field');
+                        return ctx.badRequest('"data.field" is required for update_column');
                     }
                     if (!updates || typeof updates !== 'object') {
-                        return ctx.badRequest('"data.updates" must be an object for update_field');
+                        return ctx.badRequest('"data.updates" must be an object for update_column');
                     }
                     if (!existingAttributes[fieldName]) {
                         return ctx.badRequest(`Field "${fieldName}" does not exist in collection "${uid}"`);
@@ -290,11 +290,11 @@ export default {
                     break;
                 }
 
-                // ── 4. DELETE FIELD ───────────────────────────────────
-                case 'delete_field': {
+                // ── 4. DELETE COLUMN ───────────────────────────────────
+                case 'delete_column': {
                     const fieldName = data.field;
                     if (!fieldName) {
-                        return ctx.badRequest('"data.field" is required for delete_field');
+                        return ctx.badRequest('"data.field" is required for delete_column');
                     }
                     if (!existingAttributes[fieldName]) {
                         return ctx.badRequest(`Field "${fieldName}" does not exist in collection "${uid}"`);
@@ -311,7 +311,7 @@ export default {
 
                 default:
                     return ctx.badRequest(
-                        `Unsupported operation "${operation}". Allowed: add_column, update_collection, update_field, delete_field`
+                        `Unsupported operation "${operation}". Allowed: add_column, update_collection, update_column, delete_column`
                     );
             }
 

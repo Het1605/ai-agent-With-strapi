@@ -447,13 +447,7 @@ export interface ApiEmployeeLeaveEmployeeLeave
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
-    employee_id: Schema.Attribute.Relation<
-      'manyToOne',
-      'api::employee.employee'
-    > &
-      Schema.Attribute.Required;
     end_date: Schema.Attribute.Date & Schema.Attribute.Required;
-    is_active: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<true>;
     leave_type: Schema.Attribute.Enumeration<
       ['sick', 'vacation', 'personal', 'maternity', 'paternity', 'bereavement']
     > &
@@ -467,8 +461,6 @@ export interface ApiEmployeeLeaveEmployeeLeave
     publishedAt: Schema.Attribute.DateTime;
     reason: Schema.Attribute.Text;
     start_date: Schema.Attribute.Date & Schema.Attribute.Required;
-    status: Schema.Attribute.Enumeration<['pending', 'approved', 'rejected']> &
-      Schema.Attribute.Required;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -509,6 +501,7 @@ export interface ApiEmployeeEmployee extends Struct.CollectionTypeSchema {
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+    work_related: Schema.Attribute.String;
   };
 }
 
@@ -527,7 +520,7 @@ export interface ApiProductProduct extends Struct.CollectionTypeSchema {
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
-    description: Schema.Attribute.Text;
+    description: Schema.Attribute.String;
     is_active: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<true>;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
@@ -536,17 +529,8 @@ export interface ApiProductProduct extends Struct.CollectionTypeSchema {
     > &
       Schema.Attribute.Private;
     metadata: Schema.Attribute.JSON;
-    name: Schema.Attribute.String &
-      Schema.Attribute.Required &
-      Schema.Attribute.Unique;
-    price: Schema.Attribute.Decimal &
-      Schema.Attribute.Required &
-      Schema.Attribute.SetMinMax<
-        {
-          min: 0;
-        },
-        number
-      >;
+    name: Schema.Attribute.String & Schema.Attribute.Required;
+    price: Schema.Attribute.Decimal & Schema.Attribute.Required;
     publishedAt: Schema.Attribute.DateTime;
     release_date: Schema.Attribute.Date;
     sku: Schema.Attribute.String & Schema.Attribute.Unique;
@@ -580,9 +564,9 @@ export interface ApiStudentStudent extends Struct.CollectionTypeSchema {
     email: Schema.Attribute.Email &
       Schema.Attribute.Required &
       Schema.Attribute.Unique;
-    enrollment_date: Schema.Attribute.Date;
-    first_name: Schema.Attribute.String & Schema.Attribute.Required;
-    last_name: Schema.Attribute.String & Schema.Attribute.Required;
+    enrollment_number: Schema.Attribute.String & Schema.Attribute.Unique;
+    first_name: Schema.Attribute.String;
+    last_name: Schema.Attribute.String;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
       'oneToMany',
@@ -591,8 +575,6 @@ export interface ApiStudentStudent extends Struct.CollectionTypeSchema {
       Schema.Attribute.Private;
     phone_number: Schema.Attribute.String;
     publishedAt: Schema.Attribute.DateTime;
-    status: Schema.Attribute.Enumeration<['active', 'inactive', 'graduated']> &
-      Schema.Attribute.Required;
     student_id: Schema.Attribute.String &
       Schema.Attribute.Required &
       Schema.Attribute.Unique;

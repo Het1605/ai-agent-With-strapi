@@ -16,6 +16,10 @@ async def schema_planner_agent(state: AgentState) -> AgentState:
     history = state.get("conversation_history", [])
     modify_operations = state.get("modify_operations", [])
     previous_plan = state.get("modify_schema_plan", {})
+
+    print("modify_operations:",modify_operations)
+
+    print("previous_plan:",previous_plan)
     
     if not modify_operations and not previous_plan:
         print("[ModifySchemaPlannerAgent] No operations detected and no previous plan exists.")
@@ -105,6 +109,10 @@ async def schema_planner_agent(state: AgentState) -> AgentState:
         
         content = response.content.replace("```json", "").replace("```", "").strip()
         plan = json.loads(content)
+
+        print("Planner Content:",content)
+        
+        print("Plan:",plan)
         
         # Ensure correct base structure
         if "operations" not in plan:

@@ -17,6 +17,11 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
     schema_plan = state.get("modify_schema_plan", {})
     previous_design = state.get("modify_schema_design", {})
     field_registry = state.get("field_registry", {})
+
+    print("schema_plan :",schema_plan)
+
+    print("previous_design:",previous_design)
+
     
     if not schema_plan or not schema_plan.get("operations"):
         print("[ModifySchemaDesignerAgent] No operations planned.")
@@ -24,88 +29,95 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
         return state
 
     system_prompt = """
-    You are a Senior Database Schema Designer.
-    Your task is to convert high-level schema modification plans into fully detailed schema changes.
+    You are a Senior Database Architect and Schema Designer.
+    Your task is to convert high-level schema modification plans into fully detailed, production-ready schema changes.
 
     You will receive:
     1. The target Modification Plan (from the Planner Agent)
     2. The previous Schema Design (if this is an iterative refinement)
-    3. The Field Registry mapping allowed types and constraints
+    3. The Field Registry mapping allowed types and all valid constraints/attributes
     4. The Conversation History and Latest User Input
 
     --------------------------------------------------
     YOUR OBJECTIVE
     --------------------------------------------------
     Generate a highly structured JSON document detailing exactly HOW to modify the schema.
-    Determine the optimal standard data types, constraints (required, unique, default), and specific structural changes.
+    You MUST behave intelligently, simulating a real architect defining database tables.
 
-    Supported Intents:
-    1. add_column
-    2. delete_column
-    3. update_column
-    4. update_collection
+    CRITICAL RULES:
+    1. FULL FIELD REGISTRY UTILIZATION: You MUST consult the provided Field Registry to know which attributes are valid for a given type. 
+       - If type="string", use constraints like `minLength`, `maxLength`, `regex` where appropriate.
+       - If type="decimal", use `min`, `max` where appropriate.
+       - If type="media", use `multiple`, `allowedTypes`.
+       - If type="relation", use `relation`, `target`, `targetAttribute`.
+       DO NOT guess attributes. Only use what is listed in the Field Registry.
+
+    2. GENERATE REALISTIC DATABASE FIELDS: Make logical assumptions about constraints.
+       - A "salary" column should likely be `type: decimal`, `min: 0`, `required: true`.
+       - An "email" column should likely be `type: email`, `unique: true`, `required: true`.
+       - A "name" column should likely be `type: string`, `minLength: 2`, `maxLength: 100`.
+
+    3. DO NOT INCLUDE NULL OR UNUSED ATTRIBUTES: 
+       - Omit any attribute that is null, false, or irrelevant. Do NOT output `"minLength": null`.
+
+    4. SUPPORT MULTIPLE OPERATIONS: The input may contain modifications for multiple tables, multiple columns, and multiple intents. Address them all.
 
     --------------------------------------------------
-    OUTPUT STRUCTURE
+    OUTPUT FORMAT
     --------------------------------------------------
     Return ONLY a valid JSON object starting with `{ "operations": [ ... ] }`.
-    Do not wrap it in markdown. Do not provide explanations.
+    No explanations, no wrapper text, no markdown block quotes around the JSON unless strictly necessary.
 
-    Example for add_column:
+    Example structure:
     {
-      "intent": "add_column",
-      "table": "employees",
-      "columns": [
+      "operations": [
         {
-          "name": "salary",
-          "type": "decimal",
-          "required": false,
-          "unique": false,
-          "default": null
-        }
-      ]
-    }
-
-    Example for delete_column:
-    {
-      "intent": "delete_column",
-      "table": "employees",
-      "columns": [
-        {"name": "leave_balance"}
-      ]
-    }
-
-    Example for update_column:
-    {
-      "intent": "update_column",
-      "table": "employees",
-      "columns": [
+          "intent": "add_column",
+          "table": "employees",
+          "columns": [
+            {
+              "name": "salary",
+              "type": "decimal",
+              "min": 0,
+              "required": true
+            },
+            {
+              "name": "email",
+              "type": "email",
+              "unique": true,
+              "required": true
+            }
+          ]
+        },
         {
-          "name": "salary",
+          "intent": "delete_column",
+          "table": "employees",
+          "columns": [
+            {"name": "leave_balance"}
+          ]
+        },
+        {
+          "intent": "update_column",
+          "table": "employees",
+          "columns": [
+            {
+              "name": "status",
+              "changes": {
+                "type": "enumeration",
+                "enum": ["active", "inactive"]
+              }
+            }
+          ]
+        },
+        {
+          "intent": "update_collection",
+          "table": "employees",
           "changes": {
-            "type": "decimal",
-            "required": true
+            "displayName": "Staff"
           }
         }
       ]
     }
-
-    Example for update_collection:
-    {
-      "intent": "update_collection",
-      "table": "employees",
-      "changes": {
-        "rename_to": "staff_members"
-      }
-    }
-
-    --------------------------------------------------
-    RULES
-    --------------------------------------------------
-    1. Group outputs inside an "operations" array.
-    2. Follow the Planner's requested structure.
-    3. Modify existing definitions if the user iteratively refined their request ("actually, make salary required").
-    4. Pick the most realistic data types defined in conventional systems.
     """
 
     context_message = f"""
@@ -133,6 +145,11 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
         
         content = response.content.replace("```json", "").replace("```", "").strip()
         design = json.loads(content)
+
+        print("Designer Content:",content)
+
+        print("Designer Design:",design)
+        
         
         if "operations" not in design:
             design = {"operations": []}

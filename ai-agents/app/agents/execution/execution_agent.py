@@ -4,12 +4,14 @@ from langchain_core.messages import SystemMessage
 from app.graph.state import AgentState
 from app.services.strapi_client import strapi_client
 
+import asyncio
+
 async def execution_agent(state: AgentState) -> AgentState:
     """
-    ExecutionAgent (Lean): Pure Gatekeeper and State Manager.
-    Delegates all networking and retries to the 'strapi_client' service.
+    ExecutionAgent (Sequential Executor): Safe sequential executor with retries.
+    Delegates all networking to the 'strapi_client' service.
     """
-    print("\n----- ENTERING ExecutionAgent (Lean & Secure) -----")
+    print("\n----- ENTERING ExecutionAgent (Sequential) -----")
 
     payloads = state.get("execution_payloads", [])
     if not payloads:
@@ -37,18 +39,43 @@ async def execution_agent(state: AgentState) -> AgentState:
             errors.append(msg)
             continue
 
-        # ── 2. Request Execution via Service ──────────────────────────
-        response = strapi_client.post_payload(payload)
+        print("check_response:",check_response)
+
+        # ── 2. Request Execution via Service (with retries) ────────────
+        max_retries = 3
+        success = False
         
-        if response["status"] == "success":
-            results.append(response["data"])
-        elif response["status"] == "skipped":
-            results.append({"status": "skipped", "reason": "already_exists"})
-        else:
-            errors.append(response["error"])
+        for attempt in range(max_retries):
+            response = strapi_client.post_payload(payload)
+            
+            if response["status"] == "success":
+                results.append({
+                    "operation": payload.get("operation"),
+                    "collection": payload.get("collection") or payload.get("collectionName"),
+                    "status": "success",
+                    "data": response.get("data")
+                })
+                success = True
+                break
+            elif response["status"] == "skipped":
+                results.append({
+                    "operation": payload.get("operation"),
+                    "collection": payload.get("collection") or payload.get("collectionName"),
+                    "status": "skipped",
+                    "reason": "already_exists"
+                })
+                success = True
+                break
+            else:
+                print(f"[ExecutionAgent] Attempt {attempt+1}/{max_retries} failed: {response['error']}")
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(2)  # Delay between retries
+        
+        if not success:
+            errors.append(f"Operation failed after {max_retries} attempts: {response['error']}")
 
     # ── 3. Final State Update ──────────────────────────────────────────
-    state["execution_result"] = results if len(results) > 1 else (results[0] if results else None)
+    state["execution_result"] = {"results": results}
     
     if errors:
         state["execution_error"] = " | ".join(errors)
@@ -56,7 +83,7 @@ async def execution_agent(state: AgentState) -> AgentState:
     else:
         state["execution_error"] = None
         state["interaction_phase"] = False
-        print("[ExecutionAgent] Batch completed successfully.")
+        print("[ExecutionAgent] Batch completed. All operations executed.")
 
     # Cleanup state
     state["execution_payloads"] = []

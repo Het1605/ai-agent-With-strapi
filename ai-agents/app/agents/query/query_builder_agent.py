@@ -23,9 +23,74 @@ async def query_builder_agent(state: AgentState) -> AgentState:
 
     # ── 1. DDL_MODIFY_SCHEMA path ────────────────────────────────────
     if ddl_operation == "DDL_MODIFY_SCHEMA":
-        payload = await _handle_modify_schema_payload(state, llm, schema_data, operation)
-        if payload:
-            state["execution_payloads"] = [payload]
+        modify_design = state.get("modify_schema_design", {})
+        operations = modify_design.get("operations", [])
+        payloads = []
+
+        print("modify_design:",modify_design)
+
+        print("operations:",operations)
+        
+        for op in operations:
+            intent = op.get("intent")
+            table = op.get("table", "untitled").lower().replace("_", "-").replace(" ", "-") # Ensure kebab-case
+            
+            # Relation Resolution for columns
+            if "columns" in op:
+                for col in op["columns"]:
+                    if col.get("type") == "relation" and col.get("target") and not col["target"].startswith("api::"):
+                        target_id = col["target"].lower().replace("_", "-").replace(" ", "-")
+                        col["target"] = f"api::{target_id}.{target_id}"
+                        
+                    if "changes" in col:
+                        updates = col["changes"]
+                        if updates.get("type") == "relation" and updates.get("target") and not updates["target"].startswith("api::"):
+                            target_id = updates["target"].lower().replace("_", "-").replace(" ", "-")
+                            updates["target"] = f"api::{target_id}.{target_id}"
+
+            if intent == "add_column":
+                print("Enter in add_column:")
+                payloads.append({
+                    "operation": "add_column",
+                    "collection": table,
+                    "data": {"fields": op.get("columns", [])}
+                })
+
+                print(payloads)
+
+            elif intent == "delete_column":
+                for col in op.get("columns", []):
+                    payloads.append({
+                        "operation": "delete_column",
+                        "collection": table,
+                        "data": {"field": col.get("name")}
+                    })
+            elif intent == "update_column":
+                print("Enter in Update_column")
+                for col in op.get("columns", []):
+                    payloads.append({
+                        "operation": "update_column",
+                        "collection": table,
+                        "data": {
+                            "field": col.get("name"),
+                            "updates": col.get("changes", {})
+                        }
+                    })
+                print(payloads)
+                
+            elif intent == "update_collection":
+                payloads.append({
+                    "operation": "update_collection",
+                    "collection": table,
+                    "data": op.get("changes", {})
+                })
+
+        # Sort payloads by priority: update_collection, add_column, update_column, delete_column
+        priority = {"update_collection": 1, "add_column": 2, "update_column": 3, "delete_column": 4}
+        payloads.sort(key=lambda p: priority.get(p.get("operation"), 99))
+        
+        state["execution_payloads"] = payloads
+        print(f"[QueryBuilder] Generated {len(payloads)} MODIFY execution payload(s) in sorted order.")
         return state
 
     # ── 2. DDL_CREATE_TABLE path ─────────────────────────────────────
@@ -126,86 +191,4 @@ async def query_builder_agent(state: AgentState) -> AgentState:
     print(f"[QueryBuilder] Generated {len(payloads)} execution payload(s).")
     return state
 
-async def _handle_modify_schema_payload(state, llm, schema_data, operation) -> dict:
-    table_name = schema_data.get("table_name", "untitled")
-    existing_collections = state.get("existing_collections", [])
-    
-    # RULE 1 & 3 Enforcement: Prefer slug, then resolve table_name to existing kebab-case ID
-    authoritative_id = schema_data.get("slug")
-    
-    if not authoritative_id:
-        # Resolve snake_case or noun to the correct Strapi identity (kebab-case)
-        # Search strategy: exact match, or snake-hyphen normalization
-        normalized_name = table_name.lower().replace("_", "-").replace(" ", "-")
-        
-        # Check if normalized version exists in database
-        for existing in existing_collections:
-            if isinstance(existing, str) and (existing == normalized_name or existing == table_name):
-                authoritative_id = existing
-                break
-            elif isinstance(existing, dict) and (existing.get("singular_name") == normalized_name or existing.get("singular_name") == table_name):
-                authoritative_id = existing.get("singular_name")
-                break
-    
-    if not authoritative_id:
-        state["execution_error"] = f"Missing authoritative Strapi identifier ('slug') for operation '{operation}' on table '{table_name}'. Target not found in existing schema."
-        return None
 
-    print(f"[QueryBuilder] Modification '{operation}' on authoritative collection identifier: '{authoritative_id}'")
-
-    if operation == "add_column":
-        # Resolve UIDs for any new relations using the same rules
-        cols = schema_data.get("columns", [])
-        for c in cols:
-            if c.get("type") == "relation" and c.get("target"):
-                target_table = c["target"]
-                print(f"[QueryBuilder] Resolving Relation Target: {target_table}")
-                
-                # Naive normalization for now, but following Rule 3/4
-                target_id = target_table.lower().replace("_", "-").replace(" ", "-")
-                c["target"] = f"api::{target_id}.{target_id}"
-
-        system_prompt = (
-            "Convert to Strapi 'fields' array.\n"
-            "RULES:\n"
-            "1. PRESERVE all constraints provided: 'required', 'unique', 'minLength', 'maxLength', 'min', 'max', 'private', 'default'.\n"
-            "2. CLEAN OUTPUT: Omit any attribute that is 'false', 'null', or missing from the input.\n"
-            "Output ONLY JSON: {\"fields\": [...]}"
-        )
-        human_msg = f"Columns: {json.dumps(cols)}"
-        response = await llm.ainvoke([SystemMessage(content=system_prompt), HumanMessage(content=human_msg)])
-        try:
-            fields = json.loads(response.content.strip().replace("```json", "").replace("```", "")).get("fields", [])
-        except:
-            fields = cols
-        return {"operation": "add_column", "collection": authoritative_id, "data": {"fields": fields}}
-
-    elif operation == "update_collection":
-        data = {"delete": True} if schema_data.get("delete") else {}
-        if schema_data.get("new_display_name"):
-            data["displayName"] = schema_data["new_display_name"]
-            
-        # Absolute Authority: Include pluralName update if provided
-        if schema_data.get("new_plural_name"):
-            data["pluralName"] = schema_data["new_plural_name"]
-            
-        return {"operation": "update_collection", "collection": authoritative_id, "data": data}
-
-    elif operation == "update_field":
-        return {
-            "operation": "update_field",
-            "collection": authoritative_id,
-            "data": {
-                "field": schema_data.get("field_name", ""),
-                "updates": schema_data.get("updates", {})
-            }
-        }
-
-    elif operation == "delete_field":
-        return {
-            "operation": "delete_field",
-            "collection": authoritative_id,
-            "data": {"field": schema_data.get("field_name", "")}
-        }
-
-    return {"operation": operation, "collection": authoritative_id, "data": schema_data}

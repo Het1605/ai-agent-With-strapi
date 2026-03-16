@@ -6,7 +6,10 @@
     "pluralName": "employee-leaves",
     "displayName": "Employee Leave"
   },
-  "options": {},
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
   "attributes": {
     "leave_type": {
       "type": "enumeration",
@@ -30,25 +33,6 @@
     },
     "reason": {
       "type": "text"
-    },
-    "status": {
-      "type": "enumeration",
-      "required": true,
-      "enum": [
-        "pending",
-        "approved",
-        "rejected"
-      ]
-    },
-    "employee_id": {
-      "type": "relation",
-      "relation": "manyToOne",
-      "target": "api::employee.employee",
-      "required": true
-    },
-    "is_active": {
-      "type": "boolean",
-      "default": true
     },
     "approval_date": {
       "type": "date"
