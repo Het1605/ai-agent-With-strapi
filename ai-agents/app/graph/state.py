@@ -61,5 +61,10 @@ class AgentState(TypedDict):
     optimization_notes: List[str]
     suggestions: List[str]
     optimized_full_plan: Dict[str, Any]
+    modify_schema_intent: Dict[str, Any]
+    modify_operations: List[Dict[str, Any]]
+    modify_schema_plan: Dict[str, Any]
+    modify_schema_design: Dict[str, Any]
+    modify_schema_preview: str
     messages: Annotated[List[Any], operator.add]
    
