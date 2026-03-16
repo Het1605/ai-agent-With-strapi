@@ -459,7 +459,6 @@ export interface ApiEmployeeLeaveEmployeeLeave
     > &
       Schema.Attribute.Private;
     publishedAt: Schema.Attribute.DateTime;
-    reason: Schema.Attribute.Text;
     start_date: Schema.Attribute.Date & Schema.Attribute.Required;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
@@ -520,8 +519,7 @@ export interface ApiProductProduct extends Struct.CollectionTypeSchema {
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
-    description: Schema.Attribute.String;
-    is_active: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<true>;
+    is_active: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
       'oneToMany',
@@ -532,7 +530,6 @@ export interface ApiProductProduct extends Struct.CollectionTypeSchema {
     name: Schema.Attribute.String & Schema.Attribute.Required;
     price: Schema.Attribute.Decimal & Schema.Attribute.Required;
     publishedAt: Schema.Attribute.DateTime;
-    release_date: Schema.Attribute.Date;
     sku: Schema.Attribute.String & Schema.Attribute.Unique;
     status: Schema.Attribute.Enumeration<
       ['available', 'out_of_stock', 'discontinued']
@@ -556,7 +553,6 @@ export interface ApiStudentStudent extends Struct.CollectionTypeSchema {
     draftAndPublish: false;
   };
   attributes: {
-    address: Schema.Attribute.Text;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -564,7 +560,6 @@ export interface ApiStudentStudent extends Struct.CollectionTypeSchema {
     email: Schema.Attribute.Email &
       Schema.Attribute.Required &
       Schema.Attribute.Unique;
-    enrollment_number: Schema.Attribute.String & Schema.Attribute.Unique;
     first_name: Schema.Attribute.String;
     last_name: Schema.Attribute.String;
     locale: Schema.Attribute.String & Schema.Attribute.Private;

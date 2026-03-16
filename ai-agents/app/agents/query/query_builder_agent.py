@@ -39,13 +39,31 @@ async def query_builder_agent(state: AgentState) -> AgentState:
             if "columns" in op:
                 for col in op["columns"]:
                     if col.get("type") == "relation" and col.get("target") and not col["target"].startswith("api::"):
-                        target_id = col["target"].lower().replace("_", "-").replace(" ", "-")
+                        raw_target = col["target"]
+                        target_id = raw_target.lower().replace("_", "-").replace(" ", "-")
+                        # Check existing collections for exact match
+                        for existing in existing_collections:
+                            if isinstance(existing, str) and (existing == target_id or existing == raw_target):
+                                target_id = existing
+                                break
+                            elif isinstance(existing, dict) and (existing.get("singular_name") == target_id or existing.get("singular_name") == raw_target):
+                                target_id = existing.get("singular_name")
+                                break
                         col["target"] = f"api::{target_id}.{target_id}"
                         
                     if "changes" in col:
                         updates = col["changes"]
                         if updates.get("type") == "relation" and updates.get("target") and not updates["target"].startswith("api::"):
-                            target_id = updates["target"].lower().replace("_", "-").replace(" ", "-")
+                            raw_target = updates["target"]
+                            target_id = raw_target.lower().replace("_", "-").replace(" ", "-")
+                            # Check existing collections for exact match
+                            for existing in existing_collections:
+                                if isinstance(existing, str) and (existing == target_id or existing == raw_target):
+                                    target_id = existing
+                                    break
+                                elif isinstance(existing, dict) and (existing.get("singular_name") == target_id or existing.get("singular_name") == raw_target):
+                                    target_id = existing.get("singular_name")
+                                    break
                             updates["target"] = f"api::{target_id}.{target_id}"
 
             if intent == "add_column":

@@ -17,6 +17,7 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
     schema_plan = state.get("modify_schema_plan", {})
     previous_design = state.get("modify_schema_design", {})
     field_registry = state.get("field_registry", {})
+    existing_collections = state.get("existing_collections", [])
 
     print("schema_plan :",schema_plan)
 
@@ -132,6 +133,9 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
     
     PREVIOUS SCHEMA DESIGN (if Iterative):
     {json.dumps(previous_design, indent=2)}
+
+    EXISTING COLLECTIONS SCHEMA:
+    {json.dumps(existing_collections, indent=2) if existing_collections else "[]"}
     
     CONVERSATION HISTORY:
     {json.dumps(history, indent=2)}

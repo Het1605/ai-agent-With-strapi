@@ -30,6 +30,8 @@ async def execution_agent(state: AgentState) -> AgentState:
             f"You are the final execution gatekeeper.\n"
             f"Payload:\n{json.dumps(payload, indent=2)}\n\n"
             "Validate payload for Strapi operation.\n"
+            "Allowed operations include: add_column, delete_column, update_column, update_collection.\n"
+            "DO NOT block 'delete_column' operations unless fundamentally malformed.\n"
             "Respond EXECUTE or BLOCK: <reason>"
         )
         check_response = await llm.ainvoke([SystemMessage(content=gatekeeper_prompt)])
@@ -85,8 +87,16 @@ async def execution_agent(state: AgentState) -> AgentState:
         state["interaction_phase"] = False
         print("[ExecutionAgent] Batch completed. All operations executed.")
 
-    # Cleanup state
+    # Cleanup state fully to prevent accidental reuse
     state["execution_payloads"] = []
+    state["modify_schema_plan"] = {}
+    state["modify_operations"] = []
+    state["modify_schema_design"] = {}
+    state["approval_status"] = None
+    state["interaction_message"] = None
     state["schema_ready"] = False
+
+    print("modify_schema_plan:",state["modify_schema_plan"])
+    print("modify_schema_design:", state["modify_schema_design"])
 
     return state

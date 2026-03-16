@@ -21,8 +21,7 @@ async def modify_schema_intent_agent(state: AgentState) -> AgentState:
 
     system_prompt = """
     You are an AI Schema Modification Intent Detector.
-    Your goal is to analyze the user's input (and conversation history if relevant)
-    and extract ALL schema modification operations requested by the user.
+    Your goal is to analyze the LATEST user input and extract ONLY the NEW schema modification operations requested in this turn.
     
     The user may request multiple operations in a single message.
     
@@ -40,11 +39,12 @@ async def modify_schema_intent_agent(state: AgentState) -> AgentState:
     --------------------------------------------------
     RESPONSIBILITY
     --------------------------------------------------
-    1. Extract ALL schema modification operations mentioned.
-    2. Identify the target collection/table for each operation.
-    3. Provide a brief detail of the requested action.
-    4. Do NOT attempt to design the schema fields here.
-    5. Do NOT guess column types.
+    1. Extract ONLY NEW schema modification operations newly mentioned in the latest user input.
+    2. Use the conversation history ONLY for context or resolving pronouns (e.g., 'table'), but DO NOT re-extract operations that were already requested and completed in the history.
+    3. Identify the target collection/table for each new operation.
+    4. Provide a brief detail of the requested action.
+    5. Do NOT attempt to design the schema fields here.
+    6. Do NOT guess column types.
     
     --------------------------------------------------
     EXPECTED OUTPUT FORMAT (STRICT JSON ARRAY)

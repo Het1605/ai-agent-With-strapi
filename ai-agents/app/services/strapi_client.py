@@ -22,7 +22,7 @@ class StrapiClient:
         Sends a payload to the appropriate Strapi bridge endpoint.
         """
         operation = payload.get("operation")
-        endpoint = self.endpoints["modify"] if operation in {"add_column", "update_collection", "update_field", "delete_field"} else self.endpoints["create"]
+        endpoint = self.endpoints["modify"] if operation in {"add_column", "update_collection", "update_column", "delete_column"} else self.endpoints["create"]
         
         last_error = ""
         for attempt in range(1, max_retries + 1):

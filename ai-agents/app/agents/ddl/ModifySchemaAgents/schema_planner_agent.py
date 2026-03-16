@@ -16,6 +16,9 @@ async def schema_planner_agent(state: AgentState) -> AgentState:
     history = state.get("conversation_history", [])
     modify_operations = state.get("modify_operations", [])
     previous_plan = state.get("modify_schema_plan", {})
+    existing_collections = state.get("existing_collections", [])
+
+    print("existing_collections:",existing_collections)
 
     print("modify_operations:",modify_operations)
 
@@ -96,6 +99,9 @@ async def schema_planner_agent(state: AgentState) -> AgentState:
     
     PREVIOUS PLAN (Iterative State):
     {json.dumps(previous_plan, indent=2)}
+
+    EXISTING COLLECTIONS SCHEMA:
+    {json.dumps(existing_collections, indent=2) if existing_collections else "[]"}
     
     CONVERSATION HISTORY:
     {json.dumps(history, indent=2)}

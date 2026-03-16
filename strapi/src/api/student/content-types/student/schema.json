@@ -9,31 +9,6 @@
   "options": {},
   "pluginOptions": {},
   "attributes": {
-    "email": {
-      "type": "email",
-      "required": true,
-      "unique": true
-    },
-    "date_of_birth": {
-      "type": "date"
-    },
-    "phone_number": {
-      "type": "string"
-    },
-    "address": {
-      "type": "text"
-    },
-    "student_id": {
-      "type": "string",
-      "required": true,
-      "unique": true
-    },
-    "createdAt": {
-      "type": "datetime"
-    },
-    "updatedAt": {
-      "type": "datetime"
-    },
     "publishedAt": {
       "type": "datetime",
       "configurable": false,
@@ -82,6 +57,28 @@
         "referencedTable": "students"
       }
     },
+    "createdAt": {
+      "type": "datetime"
+    },
+    "updatedAt": {
+      "type": "datetime"
+    },
+    "email": {
+      "type": "email",
+      "required": true,
+      "unique": true
+    },
+    "date_of_birth": {
+      "type": "date"
+    },
+    "phone_number": {
+      "type": "string"
+    },
+    "student_id": {
+      "type": "string",
+      "required": true,
+      "unique": true
+    },
     "first_name": {
       "type": "string",
       "required": false,
@@ -92,12 +89,6 @@
       "type": "string",
       "required": false,
       "unique": false,
-      "default": null
-    },
-    "enrollment_number": {
-      "type": "string",
-      "required": false,
-      "unique": true,
       "default": null
     }
   }

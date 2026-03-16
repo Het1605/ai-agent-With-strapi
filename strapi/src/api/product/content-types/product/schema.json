@@ -9,43 +9,6 @@
   "options": {},
   "pluginOptions": {},
   "attributes": {
-    "sku": {
-      "type": "string",
-      "unique": true
-    },
-    "stock_quantity": {
-      "type": "integer",
-      "required": true
-    },
-    "category": {
-      "type": "string",
-      "required": true
-    },
-    "status": {
-      "type": "enumeration",
-      "required": true,
-      "enum": [
-        "available",
-        "out_of_stock",
-        "discontinued"
-      ]
-    },
-    "release_date": {
-      "type": "date"
-    },
-    "metadata": {
-      "type": "json"
-    },
-    "is_active": {
-      "type": "boolean",
-      "default": true
-    },
-    "createdAt": {
-      "type": "datetime"
-    },
-    "updatedAt": {
-      "type": "datetime"
-    },
     "publishedAt": {
       "type": "datetime",
       "configurable": false,
@@ -94,15 +57,39 @@
         "referencedTable": "products"
       }
     },
+    "createdAt": {
+      "type": "datetime"
+    },
+    "updatedAt": {
+      "type": "datetime"
+    },
+    "sku": {
+      "type": "string",
+      "unique": true
+    },
+    "stock_quantity": {
+      "type": "integer",
+      "required": true
+    },
+    "category": {
+      "type": "string",
+      "required": true
+    },
+    "status": {
+      "type": "enumeration",
+      "required": true,
+      "enum": [
+        "available",
+        "out_of_stock",
+        "discontinued"
+      ]
+    },
+    "metadata": {
+      "type": "json"
+    },
     "name": {
       "type": "string",
       "required": true,
-      "unique": false,
-      "default": null
-    },
-    "description": {
-      "type": "string",
-      "required": false,
       "unique": false,
       "default": null
     },
@@ -111,6 +98,10 @@
       "required": true,
       "unique": false,
       "default": null
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": false
     }
   }
 }
