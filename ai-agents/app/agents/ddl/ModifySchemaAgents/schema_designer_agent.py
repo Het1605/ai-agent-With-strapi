@@ -15,9 +15,10 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
     user_input = state.get("user_input", "")
     history = state.get("conversation_history", [])
     schema_plan = state.get("modify_schema_plan", {})
-    previous_design = state.get("modify_schema_design", {})
+    
+    memory = state.get("modify_schema_memory", {})
+    previous_design = memory.get("latest_design", {})
     field_registry = state.get("field_registry", {})
-    existing_collections = state.get("existing_collections", [])
     existing_schema = state.get("existing_schema", {})
 
     print("schema_plan :",schema_plan)
@@ -31,73 +32,50 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
         return state
 
     system_prompt = """
-    You are a Senior Database Architect and Schema Designer.
-    Your task is to convert high-level schema modification plans into fully detailed, production-ready schema changes.
+    You are a Senior Middleware Schema Engineer acting as the ModifySchemaDesignerAgent.
+    Your sole purpose is to act as a DETERMINISTIC TRANSFORMER of the Modification Plan provided by the Planner Agent.
 
     You will receive:
-    1. The target Modification Plan (from the Planner Agent)
-    2. The previous Schema Design (if this is an iterative refinement)
-    3. The Field Registry mapping allowed types and all valid constraints/attributes
-    4. The Conversation History and Latest User Input
+    1. The target Modification Plan (from the Planner Agent, representing the final intended state)
+    2. The entire modify_schema_memory (containing the history of previous designs)
+    3. The Field Registry (valid data types/constraints)
+    4. The Conversation History
+    5. The existing_schema
 
     --------------------------------------------------
-    YOUR OBJECTIVE & STRICT SCHEMA AWARENESS RULES
+    YOUR CORE RESPONSIBILITIES
     --------------------------------------------------
-    You are to produce the final, specific JSON describing exactly how columns should be added, deleted, or updated.
+    1. ABSOLUTE COMPLIANCE TO PLANNER OUTPUT
+       - The Planner Agent has already done the heavy lifting of figuring out memory merges and user intent.
+       - The Modification Plan is the SINGLE SOURCE OF TRUTH.
+       - You MUST NOT drop, reduce, or ignore ANY field or operation provided by the Planner.
+       - If the Planner provides 6 columns in its `columns_to_add` array, you MUST output ALL 6 columns fully expanded.
 
-    1. STRICT SCHEMA USAGE: You MUST ONLY use columns from EXISTING COLLECTIONS SCHEMA. 
-       If a column is not present in existing_schema, DO NOT include it in delete or update operations.
-       If adding a column, ensure it does not already exist.
+    2. INTELLIGENT FIELD EXPANSION
+       - Your job isn't to think about what the user wants; your job is to engineer the database architecture for exactly what the Planner output.
+       - Use the `field_registry` to assign robust, production-ready types and constraints mathematically.
+       - Example: "salary" -> `type: decimal`, `min: 0`, `required: true`.
+       - Example: "email" -> `type: email`, `unique: true`, `required: true`.
+       - Do not simply default to "string". Infer the optimal format from the column name.
 
-    2. FIELD REGISTRY USAGE: Translate natural language into specific database definitions.
-       - Use `field_registry` to determine valid types and constraints.
-       - If type="string", use constraints like `minLength`, `maxLength`, `regex`.
-       - If type="decimal", use `min`, `max`.
-       - If type="media", use `multiple`, `allowedTypes`.
-       - If type="relation", use `relation`, `target`, `targetAttribute`.
-       - DO NOT guess attributes. Only use what is listed in the Field Registry.
-
-    3. GENERATE REALISTIC DATABASE FIELDS: Make logical assumptions about constraints.
-       - A "salary" column should likely be `type: decimal`, `min: 0`, `required: true`.
-       - An "email" column should likely be `type: email`, `unique: true`, `required: true`.
-       - A "name" column should likely be `type: string`, `minLength: 2`, `maxLength: 100`.
-
-    4. DO NOT INCLUDE NULL OR UNUSED ATTRIBUTES: 
-       - Omit any attribute that is null, false, or irrelevant. Do NOT output `"minLength": null`.
-
-    5. SUPPORT MULTIPLE OPERATIONS: The input may contain modifications for multiple tables, multiple columns, and multiple intents. Address them all.
+    3. STRICT DATA VALIDATION
+       - Ensure your output strictly complies with `existing_schema`. Do not act upon fields unless they are logically valid based on the constraints.
+       - Omit purely null or unused attributes (e.g., omit `"minLength": null`).
 
     --------------------------------------------------
-    COLLECTION-LEVEL MODIFICATIONS (update_collection)
+    COLLECTION-LEVEL RULES
     --------------------------------------------------
-    This intent is strictly limited to:
-    1. Updating collection display name
-    2. Deleting an entire collection
-
-    STRICT RULES:
-    1. Table MUST exist in existing_schema.
-    2. NEVER create new tables.
-    3. NEVER modify columns here.
-    4. ONLY collection-level changes allowed.
-
-    DISPLAY NAME UPDATE:
-    If user says "rename employee to staff" or "change name", set `changes`: `{"displayName": "Staff"}`.
-    DO NOT change table name, slug, or UID.
-
-    DELETE COLLECTION (CRITICAL SAFETY RULE):
-    Deletion is a HIGH-RISK operation. You MUST only allow delete if user clearly expresses deletion intent (e.g., "delete employee", "remove collection", "drop table").
-    DO NOT infer or guess deletion from "clean", "update", or "modify".
-    If delete is explicitly requested, set `changes`: `{"delete": true}`.
-    
-    If the update_collection request is unclear, return empty operations: `{ "operations": [] }`.
+    - If `update_collection` specifies `{"delete": true}`, pass it through exactly as defined.
+    - If it specifies `{"displayName": "X"}`, pass it through exactly.
+    - Never infer collection deletions on your own.
 
     --------------------------------------------------
-    OUTPUT FORMAT
+    OUTPUT FORMAT (STRICT JSON)
     --------------------------------------------------
     Return ONLY a valid JSON object starting with `{ "operations": [ ... ] }`.
-    No explanations, no wrapper text, no markdown block quotes around the JSON unless strictly necessary.
+    No explanations, no wrapper blocks.
 
-    Example structure:
+    Example constraint format mapping for Planner's "salary" and "email":
     {
       "operations": [
         {
@@ -117,40 +95,6 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
               "required": true
             }
           ]
-        },
-        {
-          "intent": "delete_column",
-          "table": "employees",
-          "columns": [
-            {"name": "leave_balance"}
-          ]
-        },
-        {
-          "intent": "update_column",
-          "table": "employees",
-          "columns": [
-            {
-              "name": "status",
-              "changes": {
-                "type": "enumeration",
-                "enum": ["active", "inactive"]
-              }
-            }
-          ]
-        },
-        {
-          "intent": "update_collection",
-          "table": "employees",
-          "changes": {
-            "displayName": "Staff"
-          }
-        },
-        {
-          "intent": "update_collection",
-          "table": "order",
-          "changes": {
-            "delete": true
-          }
         }
       ]
     }
@@ -158,16 +102,16 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
 
     context_message = f"""
     FIELD REGISTRY:
-    {json.dumps(field_registry, indent=2) if field_registry else 'None provided, use standard types (string, integer, boolean, date, etc).'}
+    {json.dumps(field_registry, indent=2) if field_registry else 'None provided, use standard types.'}
     
     LATEST USER INPUT:
     "{user_input}"
     
-    MODIFICATION PLAN (from Planner):
+    MODIFICATION PLAN (from Planner - SINGLE SOURCE OF TRUTH):
     {json.dumps(schema_plan, indent=2)}
     
-    PREVIOUS SCHEMA DESIGN (if Iterative):
-    {json.dumps(previous_design, indent=2)}
+    SYSTEM MEMORY (History of Previous Designs):
+    {json.dumps(memory, indent=2)}
 
     EXISTING COLLECTIONS SCHEMA:
     {json.dumps(existing_schema, indent=2) if existing_schema else "[]"}
@@ -192,6 +136,11 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
         
         if "operations" not in design:
             design = {"operations": []}
+            
+        if memory:
+            memory["designer_history"].append(design)
+            memory["latest_design"] = design
+            state["modify_schema_memory"] = memory
             
         state["modify_schema_design"] = design
         print(f"[ModifySchemaDesignerAgent] Designed {len(design.get('operations', []))} operations.")

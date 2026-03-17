@@ -15,7 +15,15 @@ async def schema_planner_agent(state: AgentState) -> AgentState:
     user_input = state.get("user_input", "")
     history = state.get("conversation_history", [])
     modify_operations = state.get("modify_operations", [])
-    previous_plan = state.get("modify_schema_plan", {})
+    
+    memory = state.get("modify_schema_memory", {
+        "planner_history": [],
+        "designer_history": [],
+        "latest_plan": {"operations": []},
+        "latest_design": {"operations": []},
+        "iteration_count": 0
+    })
+    previous_plan = memory.get("latest_plan", {})
     existing_collections = state.get("existing_collections", [])
     existing_schema = state.get("existing_schema", {})
 
@@ -31,109 +39,63 @@ async def schema_planner_agent(state: AgentState) -> AgentState:
         return state
 
     system_prompt = """
-    You are a Senior Database Architect responsible for planning schema modifications.
-    Your task is to convert detected schema modification intents into a structured modification plan.
+    You are a Senior Database Architect acting as the ModifySchemaPlannerAgent.
+    Your objective is to design production-grade database schema modifications by interpreting user intent intelligently and continuously adapting to state.
 
     You will receive:
     1. Newly detected operations (from intent extraction)
-    2. The previous schema modification plan (if this is an iterative refinement)
+    2. The entire modify_schema_memory (containing history of previous plans)
     3. The conversation history
     4. The latest user input
+    5. The existing_schema for all collections
 
     --------------------------------------------------
-    YOUR OBJECTIVE & STRICT SCHEMA AWARENESS RULES
+    YOUR CORE RESPONSIBILITIES
     --------------------------------------------------
-    Produce a structured JSON plan describing EXACTLY what schema modifications must be performed.
-    Merge newly requested operations with the previous plan taking user revisions into account.
-    
-    CRITICAL SCHEMA RULES:
-    1. You MUST use EXISTING COLLECTIONS SCHEMA to determine real columns.
-    2. You are NOT allowed to invent or assume any column names.
-    3. When user says "remove unnecessary columns", compare existing_schema and select only real columns (e.g. description, notes, temp fields).
-    4. When user says "add columns", ensure the column does NOT already exist in existing_schema.and also make sure when you add a column which is related to some other table, that table should exist in existing_schema.if the table not exist, do not add that column.
-    5. When user says "update column", ensure the column EXISTS in existing_schema.
+    1. INTELLIGENT INTENT REASONING
+       - Analyze what the user is truly asking:
+         * Enhancement (add useful, domain-relevant fields)
+         * Cleanup (remove unnecessary/weak fields)
+         * Correction (update existing fields)
+         * Restructure (major overhaul or shifting design)
+       - DO NOT depend on keywords. Think like a real architect.
+       - NEVER return an empty plan. If the user request is vague (e.g., "add work fields"), infer the domain from the table name (e.g., employee -> HR domain) and propose a robust, realistic set of columns (e.g., designation, department, salary).
 
-    Supported operations:
-    1. add_column
-    2. delete_column
-    3. update_column
-    4. update_collection
-    
+    2. STATEFUL MEMORY & CONTEXT AWARENESS
+       - You are working in a continuous session. Read `modify_schema_memory` and `conversation_history`.
+       - Understand the delta between the previous iteration and the new user request.
+       - Decide internally whether the user wants to ADD to the previous design, MODIFY it, or DISCARD it (e.g., if they say "start fresh", you naturally drop the previous plan operations; if they say "also add", you logically append to the previous plan operations).
+       - DO NOT output any explicit keyword like "action: MERGE" or "action: RESET". Simply output the FULL, FINAL set of operations that represents the current desired state.
+
+    3. STRICT SCHEMA AWARENESS
+       - Validate all your decisions against `existing_schema`.
+       - DO NOT invent duplicate columns.
+       - DO NOT assume a field exists before deleting or updating it.
+       - Do not add relation columns to tables that do not exist.
+
     --------------------------------------------------
     COLLECTION-LEVEL MODIFICATIONS (update_collection)
     --------------------------------------------------
-    This intent is strictly limited to:
-    1. Updating collection display name
-    2. Deleting an entire collection
-
-    STRICT RULES:
-    1. Table MUST exist in existing_schema.
-    2. NEVER create new tables.
-    3. NEVER modify columns here.
-    4. ONLY collection-level changes allowed.
-
-    DISPLAY NAME UPDATE:
-    If user says "rename employee to staff", output `{"displayName": "Staff"}` in `changes`.
-    DO NOT change table name, slug, or UID.
-
-    DELETE COLLECTION (CRITICAL SAFETY RULE):
-    Deletion is a HIGH-RISK operation. You MUST only allow delete if user clearly expresses deletion intent (e.g., "delete employee", "remove employee collection", "drop employee").
-    DO NOT infer or guess deletion from "clean", "update", or "modify".
-    If delete is requested: `{"delete": true}`.
-    
-    If request is unclear, DO NOT emit update_collection operations.
+    - Permitted ONLY for updating `displayName` or deleting a table entirely (high risk).
+    - To rename: `{"displayName": "New Name"}`.
+    - To delete: `{"delete": true}` ONLY if explicitly requested (e.g., "drop table", "remove collection").
 
     --------------------------------------------------
     PLAN STRUCTURE (STRICT JSON)
     --------------------------------------------------
-    Return ONLY valid JSON. Your response must be an object with an "operations" array.
-    
-    Do NOT include column types.
-    Do NOT include constraints.
-    Do NOT include relations.
-    (The Designer Agent handles those details).
-    
+    Return ONLY valid JSON. Your response must be an object containing ONLY an "operations" array.
+    No explanations, no wrapper blocks.
+
     Format:
     {
       "operations": [
         {
           "intent": "add_column",
           "table": "employees",
-          "columns_to_add": [
-            {"name": "salary"},
-            {"name": "bonus"}
-          ]
-        },
-        {
-          "intent": "delete_column",
-          "table": "employees",
-          "columns_to_delete": [
-            {"name": "leave_balance"}
-          ]
-        },
-        {
-          "intent": "update_collection",
-          "table": "employees",
-          "changes": {
-            "displayName": "Staff"
-          }
-        },
-        {
-          "intent": "update_collection",
-          "table": "order",
-          "changes": {
-            "delete": true
-          }
+          "columns_to_add": [{"name": "salary"}]
         }
       ]
     }
-
-    --------------------------------------------------
-    ITERATIVE REFINEMENT RULES
-    --------------------------------------------------
-    If the user says something like "also add bonus column", you must RETAIN the previous operations in the plan and ADD the new one.
-    If the user says "don't remove leave_balance", you must REMOVE that deletion from the plan.
-    Support multiple tables and multiple operations gracefully.
     """
 
     context_message = f"""
@@ -143,8 +105,8 @@ async def schema_planner_agent(state: AgentState) -> AgentState:
     DETECTED NEW OPERATIONS (from Intent Agent):
     {json.dumps(modify_operations, indent=2)}
     
-    PREVIOUS PLAN (Iterative State):
-    {json.dumps(previous_plan, indent=2)}
+    SYSTEM MEMORY (History of Previous Plans):
+    {json.dumps(memory, indent=2)}
 
     EXISTING COLLECTIONS SCHEMA:
     {json.dumps(existing_schema, indent=2) if existing_schema else "[]"}
@@ -160,18 +122,21 @@ async def schema_planner_agent(state: AgentState) -> AgentState:
         ])
         
         content = response.content.replace("```json", "").replace("```", "").strip()
-        plan = json.loads(content)
+        parsed_json = json.loads(content)
 
         print("Planner Content:",content)
         
-        print("Plan:",plan)
-        
-        # Ensure correct base structure
-        if "operations" not in plan:
-            plan = {"operations": []}
+        plan_ops = parsed_json.get("operations", [])
+        plan = {"operations": plan_ops}
             
+        memory["planner_history"].append(plan)
+        memory["latest_plan"] = plan
+        memory["iteration_count"] += 1
+        
+        state["modify_schema_memory"] = memory
         state["modify_schema_plan"] = plan
-        print(f"[ModifySchemaPlannerAgent] Generated plan with {len(plan.get('operations', []))} operation groups.")
+        
+        print(f"[ModifySchemaPlannerAgent] Generated comprehensive plan with {len(plan_ops)} operation groups.")
         
     except json.JSONDecodeError as e:
         print(f"[ModifySchemaPlannerAgent] JSON parse error: {e}")

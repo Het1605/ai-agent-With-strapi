@@ -4,7 +4,8 @@
   "info": {
     "singularName": "employee-leave",
     "pluralName": "employee-leaves",
-    "displayName": "Employee Leave"
+    "displayName": "Leave Employee",
+    "description": ""
   },
   "options": {},
   "pluginOptions": {},
@@ -87,6 +88,17 @@
       "type": "text",
       "required": true,
       "minLength": 10
+    },
+    "working_hours_during_leave": {
+      "type": "integer",
+      "required": false,
+      "min": 0,
+      "max": 168
+    },
+    "overtime_hours_during_leave": {
+      "type": "integer",
+      "required": false,
+      "min": 0
     }
   }
 }

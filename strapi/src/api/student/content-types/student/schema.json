@@ -1,14 +1,47 @@
 {
   "kind": "collectionType",
-  "collectionName": "employees",
+  "collectionName": "students",
   "info": {
-    "singularName": "employee",
-    "pluralName": "employees",
-    "displayName": "Employee"
+    "singularName": "student",
+    "pluralName": "students",
+    "displayName": "Student"
   },
   "options": {},
-  "pluginOptions": {},
   "attributes": {
+    "first_name": {
+      "type": "string",
+      "required": true
+    },
+    "last_name": {
+      "type": "string",
+      "required": true
+    },
+    "email": {
+      "type": "email",
+      "required": true,
+      "unique": true
+    },
+    "date_of_birth": {
+      "type": "date",
+      "required": true
+    },
+    "enrollment_date": {
+      "type": "date",
+      "required": true
+    },
+    "address": {
+      "type": "text"
+    },
+    "phone_number": {
+      "type": "string",
+      "unique": true
+    },
+    "createdAt": {
+      "type": "datetime"
+    },
+    "updatedAt": {
+      "type": "datetime"
+    },
     "publishedAt": {
       "type": "datetime",
       "configurable": false,
@@ -45,7 +78,7 @@
     "localizations": {
       "type": "relation",
       "relation": "oneToMany",
-      "target": "api::employee.employee",
+      "target": "api::student.student",
       "writable": false,
       "private": true,
       "configurable": false,
@@ -54,76 +87,42 @@
       "joinColumn": {
         "name": "document_id",
         "referencedColumn": "document_id",
-        "referencedTable": "employees"
+        "referencedTable": "students"
       }
     },
-    "createdAt": {
-      "type": "datetime"
-    },
-    "updatedAt": {
-      "type": "datetime"
-    },
-    "first_name": {
+    "student_id": {
       "type": "string",
-      "required": true
-    },
-    "last_name": {
-      "type": "string",
-      "required": true
-    },
-    "email": {
-      "type": "email",
       "required": true,
       "unique": true
     },
-    "designation": {
+    "major": {
       "type": "string",
       "required": true
     },
-    "department": {
-      "type": "string",
-      "required": true
-    },
-    "salary": {
+    "gpa": {
       "type": "decimal",
-      "required": true,
-      "min": 0
-    },
-    "date_of_joining": {
-      "type": "datetime",
-      "required": true
-    },
-    "job_level": {
-      "type": "string",
-      "required": false
-    },
-    "work_shift": {
-      "type": "enumeration",
-      "required": false,
-      "enum": [
-        "morning",
-        "afternoon",
-        "night"
-      ]
-    },
-    "working_hours_per_week": {
-      "type": "integer",
       "required": false,
       "min": 0,
-      "max": 168
+      "max": 4
     },
-    "overtime_hours": {
-      "type": "integer",
-      "required": false,
-      "min": 0
-    },
-    "shift_start_time": {
-      "type": "time",
+    "graduation_date": {
+      "type": "date",
       "required": false
     },
-    "shift_end_time": {
-      "type": "time",
-      "required": false
+    "status": {
+      "type": "enumeration",
+      "required": true,
+      "enum": [
+        "active",
+        "inactive",
+        "graduated",
+        "suspended"
+      ]
+    },
+    "advisor": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::employee.employee"
     }
   }
 }

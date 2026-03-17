@@ -15,6 +15,7 @@ async def modify_schema_visualization_agent(state: AgentState) -> AgentState:
     user_input = state.get("user_input", "")
     history = state.get("conversation_history", [])
     schema_design = state.get("modify_schema_design", {})
+    memory = state.get("modify_schema_memory", {})
 
     print("schema_design:",schema_design)
     
@@ -32,30 +33,42 @@ async def modify_schema_visualization_agent(state: AgentState) -> AgentState:
     YOUR OBJECTIVE
     --------------------------------------------------
     1. Translate the JSON into a readable summary.
-    2. Analyze the operations to determine the best structure. 
-       - If there's only a single column change, keep the response short and conversational.
+    2. Analyze the operations to determine the best structure.
        - If there are multiple operations across multiple tables, group the explanation by Table and Operation clearly using headings.
-    3. Briefly explain the purpose of new columns or the impact of deleted/updated columns based on normal tech assumptions.
-    4. Conclude by naturally asking the user for their approval. Do not use a static templated generic response.
+    
+    --------------------------------------------------
+    STATEFUL VISUALIZATION BEHAVIOR (IMPORTANT)
+    --------------------------------------------------
+    You are CO-DESIGNING a database with the user in a continuous, stateful session.
+    When explaining the design to the user, you MUST distinguish between previous changes and new additions:
+    
+    - Acknowledge previous changes:
+      "Previously, we added designation, department..."
+      
+    - Then explain new additions based on the latest request:
+      "Now, based on your request, we've added working hours..."
+      
+    - Show the COMPLETE final structure.
 
-    --------------------------------------------------
-    ITERATION AWARENESS
-    --------------------------------------------------
-    - If the Conversation History implies this is the FIRST explanation of a new request, outline all changes clearly.
-    - If the Conversation History implies this is an ITERATION (e.g., the user said "Make target_date required"), do NOT repeat the entire explanation. Instead, say something like "Based on your feedback, I've updated the schema..." and dynamically focus on the adjustment alongside the overall readiness of the design.
+    If this is the FIRST explanation of a new request, simply outline all changes clearly.
 
     --------------------------------------------------
     FORMATTING RULES
     --------------------------------------------------
     - NEVER follow a rigid visual template if it doesn't fit the context. Adapt the formatting (bullet points, paragraphs).
+    - Look at the Conversation History to understand changes over time.
     - NEVER invent columns or tables that are not in the JSON.
     - NEVER modify or invent schema changes. You strictly explain what the Designer produced.
     - NEVER show raw JSON or code snippets to the user.
+    - Explain the purpose of new columns or the impact of deleted/updated columns based on normal tech assumptions.
     - End the response with a natural, varied question asking if they want to proceed/execute/apply the modifications.
     """
 
     context_message = f"""
-    STRUCTURED SCHEMA DESIGN TO EXPLAIN:
+    STATEFUL MEMORY (Contains History of Iterations):
+    {json.dumps(memory, indent=2)}
+
+    CURRENT LATEST SCHEMA DESIGN TO EXPLAIN:
     {json.dumps(schema_design, indent=2)}
     
     LATEST USER INPUT:

@@ -98,6 +98,14 @@ async def execution_agent(state: AgentState) -> AgentState:
     state["approval_status"] = None
     state["interaction_message"] = None
     state["schema_ready"] = False
+    
+    state["modify_schema_memory"] = {
+        "planner_history": [],
+        "designer_history": [],
+        "latest_plan": {"operations": []},
+        "latest_design": {"operations": []},
+        "iteration_count": 0
+    }
 
     print("modify_schema_plan:",state["modify_schema_plan"])
     print("modify_schema_design:", state["modify_schema_design"])

@@ -77,6 +77,13 @@ async def chat_endpoint(request: ChatRequest):
         "interaction_attempts": 0,
         "route_decision": None,
         "memory": {},
+        "modify_schema_memory": {
+            "planner_history": [],
+            "designer_history": [],
+            "latest_plan": {"operations": []},
+            "latest_design": {"operations": []},
+            "iteration_count": 0
+        },
         "messages": []
     })
     
