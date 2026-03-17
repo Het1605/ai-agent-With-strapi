@@ -39,6 +39,7 @@ class AgentState(TypedDict):
     field_registry: Dict[str, Any]
     existing_collections: List[str]
     schema_data: Dict[str, Any]
+    existing_schema: Dict[str, Any]
     schema_ready: bool
     debug_info: str
     interaction_request: Dict[str, Any]

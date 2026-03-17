@@ -17,6 +17,7 @@ async def schema_planner_agent(state: AgentState) -> AgentState:
     modify_operations = state.get("modify_operations", [])
     previous_plan = state.get("modify_schema_plan", {})
     existing_collections = state.get("existing_collections", [])
+    existing_schema = state.get("existing_schema", {})
 
     print("existing_collections:",existing_collections)
 
@@ -40,10 +41,17 @@ async def schema_planner_agent(state: AgentState) -> AgentState:
     4. The latest user input
 
     --------------------------------------------------
-    YOUR OBJECTIVE
+    YOUR OBJECTIVE & STRICT SCHEMA AWARENESS RULES
     --------------------------------------------------
     Produce a structured JSON plan describing EXACTLY what schema modifications must be performed.
     Merge newly requested operations with the previous plan taking user revisions into account.
+    
+    CRITICAL SCHEMA RULES:
+    1. You MUST use EXISTING COLLECTIONS SCHEMA to determine real columns.
+    2. You are NOT allowed to invent or assume any column names.
+    3. When user says "remove unnecessary columns", compare existing_schema and select only real columns (e.g. description, notes, temp fields).
+    4. When user says "add columns", ensure the column does NOT already exist in existing_schema.
+    5. When user says "update column", ensure the column EXISTS in existing_schema.
 
     Supported operations:
     1. add_column
@@ -101,7 +109,7 @@ async def schema_planner_agent(state: AgentState) -> AgentState:
     {json.dumps(previous_plan, indent=2)}
 
     EXISTING COLLECTIONS SCHEMA:
-    {json.dumps(existing_collections, indent=2) if existing_collections else "[]"}
+    {json.dumps(existing_schema, indent=2) if existing_schema else "[]"}
     
     CONVERSATION HISTORY:
     {json.dumps(history, indent=2)}

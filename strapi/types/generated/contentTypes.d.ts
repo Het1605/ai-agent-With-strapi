@@ -445,6 +445,13 @@ export interface ApiEmployeeLeaveEmployeeLeave
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+    leave_end_date: Schema.Attribute.DateTime & Schema.Attribute.Required;
+    leave_reason: Schema.Attribute.Text &
+      Schema.Attribute.Required &
+      Schema.Attribute.SetMinMaxLength<{
+        minLength: 10;
+      }>;
+    leave_start_date: Schema.Attribute.DateTime & Schema.Attribute.Required;
     leave_type: Schema.Attribute.Enumeration<
       ['sick', 'vacation', 'personal', 'maternity', 'paternity', 'bereavement']
     > &
@@ -476,6 +483,7 @@ export interface ApiEmployeeEmployee extends Struct.CollectionTypeSchema {
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+    hire_date: Schema.Attribute.DateTime & Schema.Attribute.Required;
     last_name: Schema.Attribute.String & Schema.Attribute.Required;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
@@ -483,6 +491,12 @@ export interface ApiEmployeeEmployee extends Struct.CollectionTypeSchema {
       'api::employee.employee'
     > &
       Schema.Attribute.Private;
+    phone_number: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 15;
+        minLength: 10;
+      }>;
     position: Schema.Attribute.String;
     publishedAt: Schema.Attribute.DateTime;
     updatedAt: Schema.Attribute.DateTime;
@@ -499,16 +513,40 @@ export interface ApiOrderOrder extends Struct.CollectionTypeSchema {
     singularName: 'order';
   };
   options: {
-    draftAndPublish: true;
+    draftAndPublish: false;
   };
   attributes: {
+    amount: Schema.Attribute.Decimal &
+      Schema.Attribute.Required &
+      Schema.Attribute.SetMinMax<
+        {
+          min: 0;
+        },
+        number
+      >;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<'oneToMany', 'api::order.order'> &
       Schema.Attribute.Private;
+    order_number: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.Unique;
+    payment_status: Schema.Attribute.Enumeration<
+      ['paid', 'unpaid', 'pending']
+    > &
+      Schema.Attribute.Required;
     publishedAt: Schema.Attribute.DateTime;
+    shipping_address: Schema.Attribute.Text &
+      Schema.Attribute.Required &
+      Schema.Attribute.SetMinMaxLength<{
+        minLength: 10;
+      }>;
+    status: Schema.Attribute.Enumeration<
+      ['pending', 'completed', 'cancelled']
+    > &
+      Schema.Attribute.Required;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -537,11 +575,12 @@ export interface ApiProductProduct extends Struct.CollectionTypeSchema {
       'api::product.product'
     > &
       Schema.Attribute.Private;
-    metadata: Schema.Attribute.JSON;
     name: Schema.Attribute.String & Schema.Attribute.Required;
     price: Schema.Attribute.Decimal & Schema.Attribute.Required;
     publishedAt: Schema.Attribute.DateTime;
-    sku: Schema.Attribute.String & Schema.Attribute.Unique;
+    sku: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.Unique;
     status: Schema.Attribute.Enumeration<
       ['available', 'out_of_stock', 'discontinued']
     > &

@@ -12,6 +12,7 @@ from app.agents.dml.dml_router_agent import dml_router_agent
 from app.agents.ddl.CreateTableAgents.requirement_agent import requirement_agent
 from app.agents.ddl.CreateTableAgents.planning_agent import planning_agent
 from app.agents.ddl.CreateTableAgents.schema_designer_agent import schema_designer_agent
+from app.agents.ddl.ModifySchemaAgents.schema_context_loader_agent import schema_context_loader_agent
 from app.agents.ddl.ModifySchemaAgents.modify_schema_intent_agent import modify_schema_intent_agent
 from app.agents.ddl.ModifySchemaAgents.schema_planner_agent import schema_planner_agent as modify_schema_planner_agent
 from app.agents.ddl.ModifySchemaAgents.schema_designer_agent import schema_designer_agent as modify_schema_designer_agent
@@ -68,6 +69,7 @@ def create_workflow():
     workflow.add_node("requirement", requirement_agent)
     workflow.add_node("planning", planning_agent)
     workflow.add_node("schema_designer", schema_designer_agent)
+    workflow.add_node("schema_context_loader", schema_context_loader_agent)
     workflow.add_node("modify_schema_intent", modify_schema_intent_agent)
     workflow.add_node("modify_schema_planner", modify_schema_planner_agent)
     workflow.add_node("modify_schema_designer", modify_schema_designer_agent)
@@ -140,7 +142,7 @@ def create_workflow():
         router_ddl_operation,
         {
             "requirement":  "requirement",
-            "modify_schema_intent": "modify_schema_intent",
+            "modify_schema_intent": "schema_context_loader",
         }
     )
 
@@ -170,6 +172,7 @@ def create_workflow():
     workflow.add_edge("schema_execution_planner", "query_builder")
 
     # Modify Schema Path
+    workflow.add_edge("schema_context_loader", "modify_schema_intent")
     workflow.add_edge("modify_schema_intent", "modify_schema_planner")
     workflow.add_edge("modify_schema_planner", "modify_schema_designer")
     workflow.add_edge("modify_schema_designer", "modify_schema_visualization")

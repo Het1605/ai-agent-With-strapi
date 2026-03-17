@@ -6,9 +6,7 @@
     "pluralName": "employees",
     "displayName": "Employee"
   },
-  "options": {
-    "draftAndPublish": false
-  },
+  "options": {},
   "pluginOptions": {},
   "attributes": {
     "publishedAt": {
@@ -65,6 +63,22 @@
     },
     "position": {
       "type": "string"
+    },
+    "createdAt": {
+      "type": "datetime"
+    },
+    "updatedAt": {
+      "type": "datetime"
+    },
+    "phone_number": {
+      "type": "string",
+      "required": true,
+      "minLength": 10,
+      "maxLength": 15
+    },
+    "hire_date": {
+      "type": "datetime",
+      "required": true
     }
   }
 }

@@ -13,6 +13,8 @@ async def modify_schema_intent_agent(state: AgentState) -> AgentState:
     llm = ChatOpenAI(model="gpt-4o", temperature=0)
     user_input = state.get("user_input", "")
     history = state.get("conversation_history", [])
+    existing_collections = state.get("existing_collections", [])
+    existing_schema = state.get("existing_schema", {})
     
     if not user_input:
         print("[ModifySchemaIntentAgent] No user input found.")
@@ -20,53 +22,149 @@ async def modify_schema_intent_agent(state: AgentState) -> AgentState:
         return state
 
     system_prompt = """
-    You are an AI Schema Modification Intent Detector.
-    Your goal is to analyze the LATEST user input and extract ONLY the NEW schema modification operations requested in this turn.
+    You are a Schema Modification Intent Classifier.
+    Your job is to detect:
+    1. The type of schema operation (intent)
+    2. The target table
+    3. The user's instruction (details)
     
-    The user may request multiple operations in a single message.
+    --------------------------------------------------
+    CRITICAL CONTEXT
+    --------------------------------------------------
+    You are given:
+    - user_input
+    - conversation_history
+    - existing_collections (valid tables)
+    - existing_schema (actual database structure)
+    
+    You MUST use existing_schema to understand whether the request is valid and schema-related.
+    
+    --------------------------------------------------
+    IMPORTANT BEHAVIOR
+    --------------------------------------------------
+    You MUST NOT return empty operations if the request is related to schema.
+    If you return empty operations, the system pipeline breaks.
+    This is STRICTLY FORBIDDEN.
     
     --------------------------------------------------
     SUPPORTED INTENTS
     --------------------------------------------------
-    Only these four intents are allowed:
+    You MUST classify into one of:
     1. add_column
     2. delete_column
     3. update_column
     4. update_collection
     
-    Do NOT invent new intent types.
+    --------------------------------------------------
+    OUTPUT FORMAT (STRICT)
+    --------------------------------------------------
+    Return ONLY JSON:
+    {
+      "operations": [
+        {
+          "intent": "add_column | delete_column | update_column | update_collection",
+          "table": "table_name or null",
+          "details": "cleaned user instruction"
+        }
+      ]
+    }
     
     --------------------------------------------------
-    RESPONSIBILITY
+    STRICT RULES
     --------------------------------------------------
-    1. Extract ONLY NEW schema modification operations newly mentioned in the latest user input.
-    2. Use the conversation history ONLY for context or resolving pronouns (e.g., 'table'), but DO NOT re-extract operations that were already requested and completed in the history.
-    3. Identify the target collection/table for each new operation.
-    4. Provide a brief detail of the requested action.
-    5. Do NOT attempt to design the schema fields here.
-    6. Do NOT guess column types.
+    1. ALWAYS return at least one operation for schema-related input
+    2. NEVER return empty operations unless input is completely unrelated
+    3. DO NOT extract columns
+    4. DO NOT design schema
+    5. DO NOT hallucinate tables
+    6. Only match tables from existing_collections
+    7. Use the conversation history ONLY for context, DO NOT re-extract completed past operations.
     
     --------------------------------------------------
-    EXPECTED OUTPUT FORMAT (STRICT JSON ARRAY)
+    TABLE DETECTION (IMPORTANT)
     --------------------------------------------------
-    Return ONLY a valid JSON array of objects. Do not include markdown blocks or other text.
+    - Match user input with existing_collections
+    - Use fuzzy normalization (e.g., "employees" -> "employee", "employee leave" -> "employee-leave")
+    - If table exists in existing_schema -> HIGH CONFIDENCE
+    - If not found -> table = null
     
-    Format:
-    [
-      {
-        "intent": "add_column",
-        "table": "employees",
-        "details": "add salary column"
-      },
-      {
-        "intent": "delete_column",
-        "table": "employees",
-        "details": "remove leave_balance column"
-      }
-    ]
+    --------------------------------------------------
+    SCHEMA-AWARE DECISION MAKING
+    --------------------------------------------------
+    Use existing_schema to:
+    - Confirm the system contains tables
+    - Increase confidence that request is schema-related
+    - Avoid returning empty output
+    Even if table is unclear -> still return intent
+    
+    --------------------------------------------------
+    VAGUE REQUEST HANDLING
+    --------------------------------------------------
+    User: "remove unnecessary columns"
+    You MUST return:
+    {
+      "operations": [
+        {
+          "intent": "delete_column",
+          "table": null,
+          "details": "remove unnecessary columns"
+        }
+      ]
+    }
+    DO NOT return empty.
+    
+    --------------------------------------------------
+    MULTI-OPERATION SUPPORT
+    --------------------------------------------------
+    User: "add fields to employee and remove columns from order"
+    Return:
+    {
+      "operations": [
+        {
+          "intent": "add_column",
+          "table": "employee",
+          "details": "add fields"
+        },
+        {
+          "intent": "delete_column",
+          "table": "order",
+          "details": "remove columns"
+        }
+      ]
+    }
+    
+    --------------------------------------------------
+    FAIL-SAFE
+    --------------------------------------------------
+    If intent is weak:
+    Return:
+    {
+      "operations": [
+        {
+          "intent": "update_collection",
+          "table": null,
+          "details": "<user_input>"
+        }
+      ]
+    }
+    
+    --------------------------------------------------
+    GOAL
+    --------------------------------------------------
+    You must behave like a robust intent extractor:
+    - Always produce output
+    - Never break pipeline
+    - Use schema for grounding
+    - Never hallucinate
     """
 
     context_message = f"""
+    EXISTING COLLECTIONS:
+    {json.dumps(existing_collections, indent=2) if existing_collections else '[]'}
+    
+    EXISTING SCHEMA:
+    {json.dumps(existing_schema, indent=2) if existing_schema else '{}'}
+    
     CONVERSATION HISTORY:
     {json.dumps(history, indent=2)}
     
@@ -85,7 +183,8 @@ async def modify_schema_intent_agent(state: AgentState) -> AgentState:
 
         print("Intent_agent:",content)
 
-        operations = json.loads(content)
+        parsed_json = json.loads(content)
+        operations = parsed_json.get("operations", [])
 
         print("operations:",operations)
         
@@ -97,7 +196,7 @@ async def modify_schema_intent_agent(state: AgentState) -> AgentState:
         valid_intents = {"add_column", "delete_column", "update_column", "update_collection"}
         validated_operations = []
         for op in operations:
-            if op.get("intent") in valid_intents and "table" in op:
+            if op.get("intent") in valid_intents:
                 validated_operations.append(op)
             else:
                 print(f"[ModifySchemaIntentAgent] Skipping invalid operation: {op}")

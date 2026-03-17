@@ -62,6 +62,7 @@ async def chat_endpoint(request: ChatRequest):
         "operation": "",
         "conversation_history": [],
         "field_registry": {},
+        "existing_schema": {},
         "schema_data": {"table_name": None, "columns": []},
         "schema_ready": False,
         "debug_info": "",

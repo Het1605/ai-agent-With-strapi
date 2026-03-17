@@ -65,7 +65,8 @@
     },
     "sku": {
       "type": "string",
-      "unique": true
+      "unique": true,
+      "required": true
     },
     "stock_quantity": {
       "type": "integer",
@@ -83,9 +84,6 @@
         "out_of_stock",
         "discontinued"
       ]
-    },
-    "metadata": {
-      "type": "json"
     },
     "name": {
       "type": "string",

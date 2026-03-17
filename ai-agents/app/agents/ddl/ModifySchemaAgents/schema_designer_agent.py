@@ -18,6 +18,7 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
     previous_design = state.get("modify_schema_design", {})
     field_registry = state.get("field_registry", {})
     existing_collections = state.get("existing_collections", [])
+    existing_schema = state.get("existing_schema", {})
 
     print("schema_plan :",schema_plan)
 
@@ -40,28 +41,31 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
     4. The Conversation History and Latest User Input
 
     --------------------------------------------------
-    YOUR OBJECTIVE
+    YOUR OBJECTIVE & STRICT SCHEMA AWARENESS RULES
     --------------------------------------------------
-    Generate a highly structured JSON document detailing exactly HOW to modify the schema.
-    You MUST behave intelligently, simulating a real architect defining database tables.
+    You are to produce the final, specific JSON describing exactly how columns should be added, deleted, or updated.
 
-    CRITICAL RULES:
-    1. FULL FIELD REGISTRY UTILIZATION: You MUST consult the provided Field Registry to know which attributes are valid for a given type. 
-       - If type="string", use constraints like `minLength`, `maxLength`, `regex` where appropriate.
-       - If type="decimal", use `min`, `max` where appropriate.
+    1. STRICT SCHEMA USAGE: You MUST ONLY use columns from EXISTING COLLECTIONS SCHEMA. 
+       If a column is not present in existing_schema, DO NOT include it in delete or update operations.
+       If adding a column, ensure it does not already exist.
+
+    2. FIELD REGISTRY USAGE: Translate natural language into specific database definitions.
+       - Use `field_registry` to determine valid types and constraints.
+       - If type="string", use constraints like `minLength`, `maxLength`, `regex`.
+       - If type="decimal", use `min`, `max`.
        - If type="media", use `multiple`, `allowedTypes`.
        - If type="relation", use `relation`, `target`, `targetAttribute`.
-       DO NOT guess attributes. Only use what is listed in the Field Registry.
+       - DO NOT guess attributes. Only use what is listed in the Field Registry.
 
-    2. GENERATE REALISTIC DATABASE FIELDS: Make logical assumptions about constraints.
+    3. GENERATE REALISTIC DATABASE FIELDS: Make logical assumptions about constraints.
        - A "salary" column should likely be `type: decimal`, `min: 0`, `required: true`.
        - An "email" column should likely be `type: email`, `unique: true`, `required: true`.
        - A "name" column should likely be `type: string`, `minLength: 2`, `maxLength: 100`.
 
-    3. DO NOT INCLUDE NULL OR UNUSED ATTRIBUTES: 
+    4. DO NOT INCLUDE NULL OR UNUSED ATTRIBUTES: 
        - Omit any attribute that is null, false, or irrelevant. Do NOT output `"minLength": null`.
 
-    4. SUPPORT MULTIPLE OPERATIONS: The input may contain modifications for multiple tables, multiple columns, and multiple intents. Address them all.
+    5. SUPPORT MULTIPLE OPERATIONS: The input may contain modifications for multiple tables, multiple columns, and multiple intents. Address them all.
 
     --------------------------------------------------
     OUTPUT FORMAT
@@ -135,7 +139,7 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
     {json.dumps(previous_design, indent=2)}
 
     EXISTING COLLECTIONS SCHEMA:
-    {json.dumps(existing_collections, indent=2) if existing_collections else "[]"}
+    {json.dumps(existing_schema, indent=2) if existing_schema else "[]"}
     
     CONVERSATION HISTORY:
     {json.dumps(history, indent=2)}

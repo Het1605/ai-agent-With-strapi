@@ -6,9 +6,7 @@
     "pluralName": "employee-leaves",
     "displayName": "Employee Leave"
   },
-  "options": {
-    "draftAndPublish": false
-  },
+  "options": {},
   "pluginOptions": {},
   "attributes": {
     "publishedAt": {
@@ -59,6 +57,12 @@
         "referencedTable": "employee_leaves"
       }
     },
+    "createdAt": {
+      "type": "datetime"
+    },
+    "updatedAt": {
+      "type": "datetime"
+    },
     "leave_type": {
       "type": "enumeration",
       "required": true,
@@ -70,6 +74,19 @@
         "paternity",
         "bereavement"
       ]
+    },
+    "leave_start_date": {
+      "type": "datetime",
+      "required": true
+    },
+    "leave_end_date": {
+      "type": "datetime",
+      "required": true
+    },
+    "leave_reason": {
+      "type": "text",
+      "required": true,
+      "minLength": 10
     }
   }
 }
