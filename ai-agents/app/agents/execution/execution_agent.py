@@ -30,9 +30,12 @@ async def execution_agent(state: AgentState) -> AgentState:
             f"You are the final execution gatekeeper.\n"
             f"Payload:\n{json.dumps(payload, indent=2)}\n\n"
             "Validate payload for Strapi operation.\n"
-            "Allowed operations include: add_column, delete_column, update_column, update_collection.\n"
+            "Allowed operations include: create_collection, add_column, update_column, delete_column, update_collection.\n"
+            "CRITICAL: Collection deletion is handled via operation 'update_collection' with data containing {'delete': true}.\n"
+            "DO NOT block operations that use 'update_collection' with 'delete': true. This is valid.\n"
             "DO NOT block 'delete_column' operations unless fundamentally malformed.\n"
-            "Respond EXECUTE or BLOCK: <reason>"
+            "DO NOT block valid operations due to incorrect assumptions.\n"
+            "Respond ONLY with EXECUTE or BLOCK: <reason>"
         )
         check_response = await llm.ainvoke([SystemMessage(content=gatekeeper_prompt)])
         if not check_response.content.strip().startswith("EXECUTE"):

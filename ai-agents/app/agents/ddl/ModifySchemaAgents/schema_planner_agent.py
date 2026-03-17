@@ -50,7 +50,7 @@ async def schema_planner_agent(state: AgentState) -> AgentState:
     1. You MUST use EXISTING COLLECTIONS SCHEMA to determine real columns.
     2. You are NOT allowed to invent or assume any column names.
     3. When user says "remove unnecessary columns", compare existing_schema and select only real columns (e.g. description, notes, temp fields).
-    4. When user says "add columns", ensure the column does NOT already exist in existing_schema.
+    4. When user says "add columns", ensure the column does NOT already exist in existing_schema.and also make sure when you add a column which is related to some other table, that table should exist in existing_schema.if the table not exist, do not add that column.
     5. When user says "update column", ensure the column EXISTS in existing_schema.
 
     Supported operations:
@@ -58,6 +58,30 @@ async def schema_planner_agent(state: AgentState) -> AgentState:
     2. delete_column
     3. update_column
     4. update_collection
+    
+    --------------------------------------------------
+    COLLECTION-LEVEL MODIFICATIONS (update_collection)
+    --------------------------------------------------
+    This intent is strictly limited to:
+    1. Updating collection display name
+    2. Deleting an entire collection
+
+    STRICT RULES:
+    1. Table MUST exist in existing_schema.
+    2. NEVER create new tables.
+    3. NEVER modify columns here.
+    4. ONLY collection-level changes allowed.
+
+    DISPLAY NAME UPDATE:
+    If user says "rename employee to staff", output `{"displayName": "Staff"}` in `changes`.
+    DO NOT change table name, slug, or UID.
+
+    DELETE COLLECTION (CRITICAL SAFETY RULE):
+    Deletion is a HIGH-RISK operation. You MUST only allow delete if user clearly expresses deletion intent (e.g., "delete employee", "remove employee collection", "drop employee").
+    DO NOT infer or guess deletion from "clean", "update", or "modify".
+    If delete is requested: `{"delete": true}`.
+    
+    If request is unclear, DO NOT emit update_collection operations.
 
     --------------------------------------------------
     PLAN STRUCTURE (STRICT JSON)
@@ -86,6 +110,20 @@ async def schema_planner_agent(state: AgentState) -> AgentState:
           "columns_to_delete": [
             {"name": "leave_balance"}
           ]
+        },
+        {
+          "intent": "update_collection",
+          "table": "employees",
+          "changes": {
+            "displayName": "Staff"
+          }
+        },
+        {
+          "intent": "update_collection",
+          "table": "order",
+          "changes": {
+            "delete": true
+          }
         }
       ]
     }

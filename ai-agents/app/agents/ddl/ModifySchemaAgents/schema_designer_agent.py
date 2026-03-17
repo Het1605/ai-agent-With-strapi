@@ -68,6 +68,30 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
     5. SUPPORT MULTIPLE OPERATIONS: The input may contain modifications for multiple tables, multiple columns, and multiple intents. Address them all.
 
     --------------------------------------------------
+    COLLECTION-LEVEL MODIFICATIONS (update_collection)
+    --------------------------------------------------
+    This intent is strictly limited to:
+    1. Updating collection display name
+    2. Deleting an entire collection
+
+    STRICT RULES:
+    1. Table MUST exist in existing_schema.
+    2. NEVER create new tables.
+    3. NEVER modify columns here.
+    4. ONLY collection-level changes allowed.
+
+    DISPLAY NAME UPDATE:
+    If user says "rename employee to staff" or "change name", set `changes`: `{"displayName": "Staff"}`.
+    DO NOT change table name, slug, or UID.
+
+    DELETE COLLECTION (CRITICAL SAFETY RULE):
+    Deletion is a HIGH-RISK operation. You MUST only allow delete if user clearly expresses deletion intent (e.g., "delete employee", "remove collection", "drop table").
+    DO NOT infer or guess deletion from "clean", "update", or "modify".
+    If delete is explicitly requested, set `changes`: `{"delete": true}`.
+    
+    If the update_collection request is unclear, return empty operations: `{ "operations": [] }`.
+
+    --------------------------------------------------
     OUTPUT FORMAT
     --------------------------------------------------
     Return ONLY a valid JSON object starting with `{ "operations": [ ... ] }`.
@@ -119,6 +143,13 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
           "table": "employees",
           "changes": {
             "displayName": "Staff"
+          }
+        },
+        {
+          "intent": "update_collection",
+          "table": "order",
+          "changes": {
+            "delete": true
           }
         }
       ]
