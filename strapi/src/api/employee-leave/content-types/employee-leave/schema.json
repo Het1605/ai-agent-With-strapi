@@ -4,66 +4,10 @@
   "info": {
     "singularName": "employee-leave",
     "pluralName": "employee-leaves",
-    "displayName": "Leave Employee",
-    "description": ""
+    "displayName": "Employee Leave"
   },
   "options": {},
-  "pluginOptions": {},
   "attributes": {
-    "publishedAt": {
-      "type": "datetime",
-      "configurable": false,
-      "writable": true,
-      "visible": true
-    },
-    "createdBy": {
-      "type": "relation",
-      "relation": "oneToOne",
-      "target": "admin::user",
-      "configurable": false,
-      "writable": false,
-      "visible": false,
-      "useJoinTable": false,
-      "private": true
-    },
-    "updatedBy": {
-      "type": "relation",
-      "relation": "oneToOne",
-      "target": "admin::user",
-      "configurable": false,
-      "writable": false,
-      "visible": false,
-      "useJoinTable": false,
-      "private": true
-    },
-    "locale": {
-      "writable": true,
-      "private": true,
-      "configurable": false,
-      "visible": false,
-      "type": "string"
-    },
-    "localizations": {
-      "type": "relation",
-      "relation": "oneToMany",
-      "target": "api::employee-leave.employee-leave",
-      "writable": false,
-      "private": true,
-      "configurable": false,
-      "visible": false,
-      "unstable_virtual": true,
-      "joinColumn": {
-        "name": "document_id",
-        "referencedColumn": "document_id",
-        "referencedTable": "employee_leaves"
-      }
-    },
-    "createdAt": {
-      "type": "datetime"
-    },
-    "updatedAt": {
-      "type": "datetime"
-    },
     "leave_type": {
       "type": "enumeration",
       "required": true,
@@ -73,32 +17,39 @@
         "personal",
         "maternity",
         "paternity",
-        "bereavement"
+        "unpaid"
       ]
     },
-    "leave_start_date": {
+    "start_date": {
       "type": "datetime",
       "required": true
     },
-    "leave_end_date": {
+    "end_date": {
       "type": "datetime",
       "required": true
     },
-    "leave_reason": {
+    "status": {
+      "type": "enumeration",
+      "required": true,
+      "enum": [
+        "pending",
+        "approved",
+        "rejected"
+      ]
+    },
+    "reason": {
       "type": "text",
       "required": true,
       "minLength": 10
     },
-    "working_hours_during_leave": {
-      "type": "integer",
-      "required": false,
-      "min": 0,
-      "max": 168
+    "employee": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::employee.employee"
     },
-    "overtime_hours_during_leave": {
-      "type": "integer",
-      "required": false,
-      "min": 0
+    "is_active": {
+      "type": "boolean",
+      "default": true
     }
   }
 }

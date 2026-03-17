@@ -7,62 +7,7 @@
     "displayName": "Employee"
   },
   "options": {},
-  "pluginOptions": {},
   "attributes": {
-    "publishedAt": {
-      "type": "datetime",
-      "configurable": false,
-      "writable": true,
-      "visible": true
-    },
-    "createdBy": {
-      "type": "relation",
-      "relation": "oneToOne",
-      "target": "admin::user",
-      "configurable": false,
-      "writable": false,
-      "visible": false,
-      "useJoinTable": false,
-      "private": true
-    },
-    "updatedBy": {
-      "type": "relation",
-      "relation": "oneToOne",
-      "target": "admin::user",
-      "configurable": false,
-      "writable": false,
-      "visible": false,
-      "useJoinTable": false,
-      "private": true
-    },
-    "locale": {
-      "writable": true,
-      "private": true,
-      "configurable": false,
-      "visible": false,
-      "type": "string"
-    },
-    "localizations": {
-      "type": "relation",
-      "relation": "oneToMany",
-      "target": "api::employee.employee",
-      "writable": false,
-      "private": true,
-      "configurable": false,
-      "visible": false,
-      "unstable_virtual": true,
-      "joinColumn": {
-        "name": "document_id",
-        "referencedColumn": "document_id",
-        "referencedTable": "employees"
-      }
-    },
-    "createdAt": {
-      "type": "datetime"
-    },
-    "updatedAt": {
-      "type": "datetime"
-    },
     "first_name": {
       "type": "string",
       "required": true
@@ -76,54 +21,34 @@
       "required": true,
       "unique": true
     },
-    "designation": {
-      "type": "string",
+    "phone_number": {
+      "type": "string"
+    },
+    "hire_date": {
+      "type": "datetime",
       "required": true
     },
-    "department": {
+    "job_title": {
       "type": "string",
       "required": true
     },
     "salary": {
       "type": "decimal",
-      "required": true,
-      "min": 0
-    },
-    "date_of_joining": {
-      "type": "datetime",
       "required": true
     },
-    "job_level": {
-      "type": "string",
-      "required": false
-    },
-    "work_shift": {
+    "status": {
       "type": "enumeration",
-      "required": false,
+      "required": true,
       "enum": [
-        "morning",
-        "afternoon",
-        "night"
+        "active",
+        "inactive",
+        "terminated"
       ]
     },
-    "working_hours_per_week": {
-      "type": "integer",
-      "required": false,
-      "min": 0,
-      "max": 168
-    },
-    "overtime_hours": {
-      "type": "integer",
-      "required": false,
-      "min": 0
-    },
-    "shift_start_time": {
-      "type": "time",
-      "required": false
-    },
-    "shift_end_time": {
-      "type": "time",
-      "required": false
+    "is_active": {
+      "type": "boolean",
+      "required": true,
+      "default": true
     }
   }
 }

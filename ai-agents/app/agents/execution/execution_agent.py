@@ -14,6 +14,9 @@ async def execution_agent(state: AgentState) -> AgentState:
     print("\n----- ENTERING ExecutionAgent (Sequential) -----")
 
     payloads = state.get("execution_payloads", [])
+
+    print("payload :",payloads)
+
     if not payloads:
         state["execution_error"] = "No payloads to execute."
         return state
@@ -38,13 +41,14 @@ async def execution_agent(state: AgentState) -> AgentState:
             "Respond ONLY with EXECUTE or BLOCK: <reason>"
         )
         check_response = await llm.ainvoke([SystemMessage(content=gatekeeper_prompt)])
+
+
         if not check_response.content.strip().startswith("EXECUTE"):
             msg = f"Payload {idx} blocked: {check_response.content.strip()}"
             print(f"[ExecutionAgent] {msg}")
             errors.append(msg)
             continue
 
-        print("check_response:",check_response)
 
         # ── 2. Request Execution via Service (with retries) ────────────
         max_retries = 3

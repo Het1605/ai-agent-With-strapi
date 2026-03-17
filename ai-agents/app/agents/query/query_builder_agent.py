@@ -100,7 +100,7 @@ async def query_builder_agent(state: AgentState) -> AgentState:
                 payloads.append({
                     "operation": "update_collection",
                     "collection": table,
-                    "data": op.get("changes", {})
+                    "data": op.get("details", {})
                 })
 
         # Sort payloads by priority: update_collection, add_column, update_column, delete_column
@@ -109,6 +109,7 @@ async def query_builder_agent(state: AgentState) -> AgentState:
         
         state["execution_payloads"] = payloads
         print(f"[QueryBuilder] Generated {len(payloads)} MODIFY execution payload(s) in sorted order.")
+        print("payload:",payloads)
         return state
 
     # ── 2. DDL_CREATE_TABLE path ─────────────────────────────────────
@@ -192,9 +193,15 @@ async def query_builder_agent(state: AgentState) -> AgentState:
         
         response = await llm.ainvoke([SystemMessage(content=system_prompt), HumanMessage(content=human_msg)])
         try:
+            print("Entering in Try Block:")
+
             fields = json.loads(response.content.strip().replace("```json", "").replace("```", "")).get("fields", [])
+
+            print("fields:",fields)
         except:
+            print("entering in Catch Block")
             fields = []
+            
 
         payloads.append({
             "operation":      "create_collection",
@@ -207,6 +214,9 @@ async def query_builder_agent(state: AgentState) -> AgentState:
 
     state["execution_payloads"] = payloads
     print(f"[QueryBuilder] Generated {len(payloads)} execution payload(s).")
+
+    print("payload:",payloads)
+
     return state
 
 
