@@ -19,7 +19,6 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
     user_modification = state.get("user_input", "") # For iterative modifications
     field_registry = state.get("field_registry")
 
-    print("existing_schema_map",existing_schema_map)
     
     system_prompt = """
             You are a world-class Senior Database Architect and Data Modeler responsible for designing production-grade database schemas.
@@ -48,6 +47,22 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
             3. RELATIONSHIP DISCOVERY: When designing relations, prioritize connecting new tables to existing ones using the 'existing_schema_map'.
             4. TARGET RESOLUTION: When mapping relations to existing collections, you MUST use the exact 'slug' or 'singular_name' found in the 'existing_schema_map'. Do NOT guess names!
             5. If the planner output accidentally included an entity that is a semantic/purpose duplicate of an existing one, IGNORE IT and DO NOT create it. Just use relations to it.
+
+            --------------------------------------------------
+            RELATION DEPENDENCY RESOLUTION (CRITICAL)
+            --------------------------------------------------
+            Before finalizing schema, FOR EACH relation column, identify the target table.
+            Check if the target table exists in either 'existing_collections' OR the current 'architecture_plan'.
+            
+            IF the target table DOES NOT EXIST:
+            🚨 MISSING DEPENDENCY DETECTED. You MUST automatically CREATE that missing table.
+            
+            Rules for Auto-Creating Missing Dependencies:
+            1. Generate a minimal but valid schema for the missing table.
+            2. Include core identity fields (e.g., first_name, last_name, email).
+            3. Include meaningful business fields (e.g., status).
+            4. This applies to multi-level dependencies as well. If A depends on B, and B depends on C, ensure ALL exist.
+            5. NEVER create an invalid relation. If a table depends on another, that dependency MUST exist.
 
             --------------------------------------------------
             CONTEXT AWARENESS
@@ -342,7 +357,7 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
         HumanMessage(content=human_msg)
     ])
     
-    print("Schema Designer respose:",response)
+    print("Schema Designer respose:",response.content)
 
     try:
         schema = json.loads(response.content.strip().replace("```json", "").replace("```", ""))

@@ -53,7 +53,13 @@ async def schema_optimizer_agent(state: AgentState) -> AgentState:
        - When optimizing relations connecting to existing entities, refer to `existing_schema_map`.
        - NEVER guess target tables. Ensure relations correctly target existing tables using exact names/slugs from `existing_schema_map`.
 
-    3. OPTIMIZATION SCOPE
+    3. RELATION DEPENDENCY RESOLUTION (STRICT)
+       - Validate ALL relations across the proposed schema.
+       - Detect any missing target tables (i.e. target table does NOT exist in 'existing_collections' AND is NOT in the proposed schema).
+       - If a missing target is detected, you MUST automatically INCLUDE/CREATE a minimal but valid table for that target entity.
+       - Ensure NO broken references and NO dangling relations exist in the final optimized schema.
+
+    4. OPTIMIZATION SCOPE
        - Detect duplicate-purpose tables and remove them. Ensure there is only ONE source of truth per concept.
        - Improve column structure, naming consistency, relations between NEW tables, and performance-related enhancements.
        - NEVER modify existing system tables or rename existing collections.
