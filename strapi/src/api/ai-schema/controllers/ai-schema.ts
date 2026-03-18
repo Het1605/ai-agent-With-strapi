@@ -422,4 +422,275 @@ export default {
             return ctx.internalServerError(`Failed to get content type schema: ${error.message}`);
         }
     },
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    //  DATA OPERATION APIs (Runtime CRUD)
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    async getEntries(ctx: any) {
+        try {
+            const { collection } = ctx.params;
+            const collectionName = collection.toLowerCase();
+            const uid = `api::${collectionName}.${collectionName}`;
+
+            // @ts-ignore
+            strapi.log.info(`[getEntries] UID=${uid}, query=${JSON.stringify(ctx.query)}`);
+
+            // @ts-ignore
+            if (!strapi.contentTypes[uid]) {
+                return ctx.notFound(`Collection "${collectionName}" does not exist.`);
+            }
+
+            // ── 1. FILTERS (safe JSON parse) ─────────────────
+            let parsedFilters: any = undefined;
+            if (ctx.query.filters) {
+                if (typeof ctx.query.filters === 'string') {
+                    try {
+                        parsedFilters = JSON.parse(ctx.query.filters);
+                    } catch (e: any) {
+                        return ctx.badRequest(`Invalid JSON in "filters" query param: ${e.message}`);
+                    }
+                } else {
+                    // Already an object (Strapi's qs parser may have handled it)
+                    parsedFilters = ctx.query.filters;
+                }
+            }
+
+            // ── 2. SORTING ───────────────────────────────────
+            const sort = ctx.query.sort || 'createdAt:desc';
+
+            // ── 3. PAGINATION ────────────────────────────────
+            const page = Number(ctx.query.page) || 1;
+            const pageSize = Number(ctx.query.pageSize) || 10;
+
+            // ── 4. POPULATE ──────────────────────────────────
+            const populate = ctx.query.populate || '*';
+
+            // ── 5. BUILD QUERY ───────────────────────────────
+            const queryOptions: any = {
+                sort,
+                populate,
+                status: 'published',
+                limit: pageSize,
+                start: (page - 1) * pageSize,
+            };
+            if (parsedFilters) queryOptions.filters = parsedFilters;
+
+            // ── 6. EXECUTE ───────────────────────────────────
+            // @ts-ignore
+            const entries = await strapi.documents(uid).findMany(queryOptions);
+
+            // ── 7. COUNT (for pagination meta) ───────────────
+            // @ts-ignore
+            const allEntries = await strapi.documents(uid).findMany({
+                filters: parsedFilters || undefined,
+                status: 'published',
+                fields: ['id'],
+            });
+            const total = allEntries ? allEntries.length : 0;
+
+            return ctx.send({
+                status: 'success',
+                data: entries,
+                meta: {
+                    page,
+                    pageSize,
+                    total,
+                    pageCount: Math.ceil(total / pageSize),
+                },
+            });
+        } catch (error: any) {
+            // @ts-ignore
+            strapi.log.error('getEntries error:', error);
+            return ctx.internalServerError(`Failed to fetch entries: ${error.message}`);
+        }
+    },
+
+    async getEntry(ctx: any) {
+        try {
+            const { collection, id } = ctx.params;
+            const collectionName = collection.toLowerCase();
+            const uid = `api::${collectionName}.${collectionName}`;
+
+            // @ts-ignore
+            strapi.log.info(`[getEntry] UID=${uid}, collection=${collectionName}, id=${id}, type=${typeof id}`);
+
+            // @ts-ignore
+            if (!strapi.contentTypes[uid]) {
+                return ctx.notFound(`Collection "${collectionName}" does not exist.`);
+            }
+
+            let entry = null;
+
+            // Strategy 1: Try as documentId (string UUID — Strapi v5 native)
+            try {
+                // @ts-ignore
+                entry = await strapi.documents(uid).findOne({
+                    documentId: id,
+                    populate: '*',
+                });
+            } catch (_) { /* not a valid documentId, try numeric */ }
+
+            // Strategy 2: If not found, try as numeric id via findMany + filter
+            if (!entry) {
+                const numericId = parseInt(id);
+                if (!isNaN(numericId)) {
+                    // @ts-ignore
+                    const results = await strapi.documents(uid).findMany({
+                        filters: { id: numericId },
+                        populate: '*',
+                        status: 'published',
+                    });
+                    if (results && results.length > 0) {
+                        entry = results[0];
+                    }
+                }
+            }
+
+            // Strategy 3: Fallback — try without publish filter (for drafts)
+            if (!entry) {
+                try {
+                    // @ts-ignore
+                    entry = await strapi.documents(uid).findOne({
+                        documentId: id,
+                        populate: '*',
+                        status: 'draft',
+                    });
+                } catch (_) { /* ignore */ }
+            }
+
+            if (!entry) {
+                // @ts-ignore
+                strapi.log.warn(`[getEntry] NOT FOUND: uid=${uid}, id=${id}`);
+                return ctx.notFound(`Entry with id "${id}" not found in "${collectionName}".`);
+            }
+
+            // @ts-ignore
+            strapi.log.info(`[getEntry] FOUND: documentId=${entry.documentId}, id=${entry.id}`);
+            return ctx.send({ status: 'success', data: entry });
+        } catch (error: any) {
+            // @ts-ignore
+            strapi.log.error('getEntry error:', error);
+            return ctx.internalServerError(`Failed to fetch entry: ${error.message}`);
+        }
+    },
+
+    async createEntry(ctx: any) {
+        try {
+            const { collection, data } = ctx.request.body;
+
+            if (!collection) {
+                return ctx.badRequest('"collection" is required.');
+            }
+            if (!data || typeof data !== 'object' || Object.keys(data).length === 0) {
+                return ctx.badRequest('"data" must be a non-empty object.');
+            }
+
+            const collectionName = collection.toLowerCase();
+            const uid = `api::${collectionName}.${collectionName}`;
+
+            // @ts-ignore
+            if (!strapi.contentTypes[uid]) {
+                return ctx.notFound(`Collection "${collectionName}" does not exist.`);
+            }
+
+            // @ts-ignore
+            const entry = await strapi.documents(uid).create({ data });
+
+            return ctx.send({ status: 'success', data: entry });
+        } catch (error: any) {
+            // @ts-ignore
+            strapi.log.error('createEntry error:', error);
+            return ctx.internalServerError(`Failed to create entry: ${error.message}`);
+        }
+    },
+
+    async updateEntry(ctx: any) {
+        try {
+            const { collection, id, data } = ctx.request.body;
+
+            if (!collection) return ctx.badRequest('"collection" is required.');
+            if (!id) return ctx.badRequest('"id" (documentId or numeric id) is required.');
+            if (!data || typeof data !== 'object' || Object.keys(data).length === 0) {
+                return ctx.badRequest('"data" must be a non-empty object.');
+            }
+
+            const collectionName = collection.toLowerCase();
+            const uid = `api::${collectionName}.${collectionName}`;
+
+            // @ts-ignore
+            if (!strapi.contentTypes[uid]) {
+                return ctx.notFound(`Collection "${collectionName}" does not exist.`);
+            }
+
+            // Resolve the actual documentId
+            let resolvedDocId = id;
+            const numericId = parseInt(id);
+            if (!isNaN(numericId)) {
+                // @ts-ignore
+                const results = await strapi.documents(uid).findMany({ filters: { id: numericId } });
+                if (results && results.length > 0) {
+                    resolvedDocId = results[0].documentId;
+                } else {
+                    return ctx.notFound(`Entry with id "${id}" not found in "${collectionName}".`);
+                }
+            }
+
+            // @ts-ignore
+            const updated = await strapi.documents(uid).update({
+                documentId: resolvedDocId,
+                data,
+            });
+
+            return ctx.send({ status: 'success', data: updated });
+        } catch (error: any) {
+            // @ts-ignore
+            strapi.log.error('updateEntry error:', error);
+            return ctx.internalServerError(`Failed to update entry: ${error.message}`);
+        }
+    },
+
+    async deleteEntry(ctx: any) {
+        try {
+            // DELETE requests do NOT have body parsing in Koa/Strapi.
+            // Read collection + id from route params instead.
+            const { collection, id } = ctx.params;
+
+            if (!collection) return ctx.badRequest('"collection" is required in the URL path.');
+            if (!id) return ctx.badRequest('"id" is required in the URL path.');
+
+            const collectionName = collection.toLowerCase();
+            const uid = `api::${collectionName}.${collectionName}`;
+
+            // @ts-ignore
+            strapi.log.info(`[deleteEntry] UID=${uid}, collection=${collectionName}, id=${id}`);
+
+            // @ts-ignore
+            if (!strapi.contentTypes[uid]) {
+                return ctx.notFound(`Collection "${collectionName}" does not exist.`);
+            }
+
+            // Resolve the actual documentId (support both numeric id and string documentId)
+            let resolvedDocId = id;
+            const numericId = parseInt(id);
+            if (!isNaN(numericId)) {
+                // @ts-ignore
+                const results = await strapi.documents(uid).findMany({ filters: { id: numericId } });
+                if (results && results.length > 0) {
+                    resolvedDocId = results[0].documentId;
+                } else {
+                    return ctx.notFound(`Entry with id "${id}" not found in "${collectionName}".`);
+                }
+            }
+
+            // @ts-ignore
+            await strapi.documents(uid).delete({ documentId: resolvedDocId });
+
+            return ctx.send({ status: 'success', data: { id, documentId: resolvedDocId, deleted: true } });
+        } catch (error: any) {
+            // @ts-ignore
+            strapi.log.error('deleteEntry error:', error);
+            return ctx.internalServerError(`Failed to delete entry: ${error.message}`);
+        }
+    },
 };

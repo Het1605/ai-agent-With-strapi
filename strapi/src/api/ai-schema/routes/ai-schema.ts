@@ -50,5 +50,56 @@ export default {
                 middlewares: [],
             },
         },
+        // ── DATA OPERATION ROUTES (Runtime CRUD) ──────────
+        {
+            method: "GET",
+            path: "/ai-schema/get-entries/:collection",
+            handler: "ai-schema.getEntries",
+            config: {
+                auth: false,
+                policies: [],
+                middlewares: [],
+            },
+        },
+        {
+            method: "GET",
+            path: "/ai-schema/get-entry/:collection/:id",
+            handler: "ai-schema.getEntry",
+            config: {
+                auth: false,
+                policies: [],
+                middlewares: [],
+            },
+        },
+        {
+            method: "POST",
+            path: "/ai-schema/create-entry",
+            handler: "ai-schema.createEntry",
+            config: {
+                auth: false,
+                policies: [],
+                middlewares: [],
+            },
+        },
+        {
+            method: "PUT",
+            path: "/ai-schema/update-entry",
+            handler: "ai-schema.updateEntry",
+            config: {
+                auth: false,
+                policies: [],
+                middlewares: [],
+            },
+        },
+        {
+            method: "DELETE",
+            path: "/ai-schema/delete-entry/:collection/:id",
+            handler: "ai-schema.deleteEntry",
+            config: {
+                auth: false,
+                policies: [],
+                middlewares: [],
+            },
+        },
     ],
 };
