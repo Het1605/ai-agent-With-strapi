@@ -19,8 +19,11 @@ async def schema_context_loader_agent(state: AgentState) -> AgentState:
             if registry_res.status_code == 200:
                 data = registry_res.json()
                 collections = data.get("collections", [])
+                
+                # Expose the raw collections array directly to the graph state
+                state["existing_collections"] = collections
 
-                print("collections:",collections)
+                print("collections:", collections)
                 
                 # 2. Extract schema structure for each collection
                 for col_name in collections:

@@ -19,7 +19,7 @@ async def query_builder_agent(state: AgentState) -> AgentState:
     state["execution_payloads"] = []
 
     print(f"schema_data: {schema_data}")
-    print(f"existing_collections count: {len(existing_collections)}")
+    print(f"existing_collections: ", existing_collections)
 
     # ── 1. DDL_MODIFY_SCHEMA path ────────────────────────────────────
     if ddl_operation == "DDL_MODIFY_SCHEMA":
@@ -117,6 +117,8 @@ async def query_builder_agent(state: AgentState) -> AgentState:
     if not tables:
         state["execution_error"] = "No table data available."
         return state
+    
+    print("tables:",tables)
 
     payloads = []
     # Build a lookup set for existing singular names
@@ -127,6 +129,8 @@ async def query_builder_agent(state: AgentState) -> AgentState:
             existing_singulars.add(item)
         elif isinstance(item, dict):
             existing_singulars.add(item.get("singular_name"))
+    
+    print("existing_singulars:",existing_singulars)
 
     for table in tables:
         table_name = table.get("table_name", "untitled")
@@ -162,14 +166,29 @@ async def query_builder_agent(state: AgentState) -> AgentState:
                 
                 # Search in current batch using table_name, slug, or singular_name
                 for t in tables:
+                    print("Entering in for loop")
                     if t.get("table_name") == target_table or t.get("slug") == target_table or t.get("singular_name") == target_table:
+                        print("Entering in If block")
                         target_authoritative_id = t.get("slug") # RULE 1: slug is authoritative
+                        print("target_authoritative_id",target_authoritative_id)
                         break
                 
                 # Search in existing collections (Schema Awareness)
                 if not target_authoritative_id:
-                    if target_table in existing_singulars:
-                        target_authoritative_id = target_table
+
+                    print("Entering in second if block")
+                    # The LLM might have provided the full UID (e.g. api::employee.employee)
+                    clean_target = target_table
+                    if target_table.startswith("api::"):
+                        print("entering in 1st if block")
+                        clean_target = target_table.split(".")[1]
+                        
+                    if clean_target in existing_singulars:
+                        print("entering in 2nd if block")
+                        target_authoritative_id = clean_target
+                    
+                    print("clean_target:",clean_target)
+                    print("target_authoritative_id:",target_authoritative_id)
 
                 if not target_authoritative_id:
                     print(f"[QueryBuilder] RELATION ERROR: Could not resolve target '{target_table}'")

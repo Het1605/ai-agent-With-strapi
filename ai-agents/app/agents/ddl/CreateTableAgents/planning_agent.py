@@ -14,11 +14,15 @@ async def planning_agent(state: AgentState) -> AgentState:
     reqs = state.get("requirements", {})
     field_registry = state.get("field_registry", {})
     existing_collections = state.get("existing_collections", [])
+    existing_schema_map = state.get("existing_schema_map", state.get("existing_schema", {}))
     history = state.get("conversation_history", [])
     previous_plan = state.get("architecture_plan", {})
     stored_optional = state.get("optional_modules", [])
     user_modification = state.get("user_input", "") # The latest feedback
 
+    print("Existing Collections:", existing_collections)
+    print("Existing Schema Map:", existing_schema_map)
+    
     
     system_prompt = """
             You are a world-class Enterprise Database Architect and System Designer.
@@ -31,16 +35,19 @@ async def planning_agent(state: AgentState) -> AgentState:
             AUTHORITATIVE CONTEXT: EXISTING SCHEMA
             --------------------------------------------------
 
-            You will receive a list of "Existing Collections" currently in the database.
+            You will receive a list of "Existing Collections" and an "Existing Schema Map".
             
             This is the Authoritative Source of Truth for the current system state.
             
-            Rules for handling Existing Schema:
-            1. NEVER recreate a table that already exists in 'existing_collections'.
-            2. If the user asks for a table that already exists, treat it as a "modification" or "expansion" requirement, NOT a new creation.
-            3. Always look for logical relationships between new entities you design and the entities already present in the database.
-            4. If you decide to add a relationship to an existing table, list that existing table as part of your architecture if it helps clarify the design, but mark it clearly if your format allows (or just ensure it is referenced).
-
+            Rules for handling Existing Schema (STRICT DUPLICATION SAFETY):
+            1. STRICT DUPLICATE PREVENTION: NEVER propose/recreate a table that exists in 'existing_collections'.
+            2. SEMANTIC INTELLIGENCE: Before suggesting ANY new entity, compare its PURPOSE and concept against 'existing_schema_map'.
+               - Does a table with a similar PURPOSE already exist? (e.g., employee_salary vs salary)
+               - Does any existing table already store this type of data?
+               - If YES: ❌ DO NOT propose the new table. ✅ Plan to REUSE and extend the existing table natively via relationships.
+            3. TARGET RESOLUTION: ALWAYS check 'existing_schema_map' before suggesting entities. If an entity exists, DO NOT recreate it.
+            4. Thinking Model: You are EXTENDING the system, NOT recreating from scratch. Only suggest entirely NEW domain entities.
+            5. If the user asks for a table that already exists or something semantically identical, do not list it in the output entities.
 
             --------------------------------------------------
             ARCHITECTURAL THINKING PROCESS
@@ -48,12 +55,12 @@ async def planning_agent(state: AgentState) -> AgentState:
 
             Before generating the architecture, reason internally through these steps:
 
-            1. Analyze the 'Existing Collections' to understand the current foundation.
+            1. Analyze the 'Existing Schema Map' to understand the current foundation.
             2. Understand the new business requirements.
-            3. Identify which requirements are already satisfied by existing tables.
-            4. Identify new domain entities needed.
+            3. Identify which requirements are logically satisfied by existing tables.
+            4. Identify ONLY the completely NEW domain entities needed.
             5. Determine how new entities connect to existing ones.
-            6. Group entities into logical modules (preserving existing ones).
+            6. Group NEW entities into logical modules. Make sure no entity in "modules" matches existing collections.
             7. Detect optional modules that enhance the system.
 
             Do NOT output this reasoning. Only output the final architecture plan.
@@ -126,14 +133,12 @@ async def planning_agent(state: AgentState) -> AgentState:
 
             You must interpret and apply the request intelligently.
 
-            1. If the user asks for a table that exists in 'existing_collections':
-               Intelligently respond that the table exists and propose adding the new required functionality to it.
+            1. If the user asks for a feature on a table that exists in 'existing_collections', output the NEW supporting tables required. Do NOT output the existing table.
 
             2. If the user asks to add "those suggested tables":
                Check the 'Previously Suggested Optional Modules' memory and promote them.
 
             Never ignore user modification requests.
-
 
             --------------------------------------------------
             OUTPUT FORMAT (STRICT)
@@ -167,6 +172,7 @@ async def planning_agent(state: AgentState) -> AgentState:
     history_str = "\n".join([f"{m['role']}: {m['content']}" for m in history[-5:]])
     human_msg = (
         f"Existing Collections in Database:\n{json.dumps(existing_collections, indent=2)}\n\n"
+        f"Existing Schema Map:\n{json.dumps(existing_schema_map, indent=2)}\n\n"
         f"Conversation History:\n{history_str}\n\n"
         f"Requirements: {json.dumps(reqs)}\n"
         f"Previous Architecture Plan: {json.dumps(previous_plan)}\n"

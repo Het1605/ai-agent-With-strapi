@@ -24,16 +24,14 @@
     "phone_number": {
       "type": "string"
     },
+    "position": {
+      "type": "string"
+    },
+    "department": {
+      "type": "string"
+    },
     "hire_date": {
       "type": "datetime",
-      "required": true
-    },
-    "job_title": {
-      "type": "string",
-      "required": true
-    },
-    "salary": {
-      "type": "decimal",
       "required": true
     },
     "status": {
@@ -47,7 +45,6 @@
     },
     "is_active": {
       "type": "boolean",
-      "required": true,
       "default": true
     }
   }

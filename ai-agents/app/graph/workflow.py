@@ -137,12 +137,15 @@ def create_workflow():
     )
     
     # DDL Specialized Sub-flow
+    # DDL Specialized Sub-flow
+    workflow.add_edge("ddl_router", "schema_context_loader")
+    
     workflow.add_conditional_edges(
-        "ddl_router",
+        "schema_context_loader",
         router_ddl_operation,
         {
             "requirement":  "requirement",
-            "modify_schema_intent": "schema_context_loader",
+            "modify_schema_intent": "modify_schema_intent"
         }
     )
 
@@ -172,7 +175,6 @@ def create_workflow():
     workflow.add_edge("schema_execution_planner", "query_builder")
 
     # Modify Schema Path
-    workflow.add_edge("schema_context_loader", "modify_schema_intent")
     workflow.add_edge("modify_schema_intent", "modify_schema_planner")
     workflow.add_edge("modify_schema_planner", "modify_schema_designer")
     workflow.add_edge("modify_schema_designer", "modify_schema_visualization")

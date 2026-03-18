@@ -23,7 +23,7 @@ async def schema_execution_planner_agent(state: AgentState) -> AgentState:
 
     system_prompt = (
         "You are a Database Execution Planner.\n"
-        "Your goal is to prepare an ordered execution plan for creating Strapi collections.\n\n"
+        "Your goal is to prepare an ordered execution plan for creating Strapi collections.if there is only one table/collection then no need to prepare execution plan.\n\n"
         "AUTHORITATIVE CONTEXT: EXISTING SCHEMA\n"
         f"The following tables already exist in the database: {json.dumps(existing_collections)}\n\n"
         "RESPONSIBILITIES:\n"
@@ -48,6 +48,9 @@ async def schema_execution_planner_agent(state: AgentState) -> AgentState:
     try:
         clean = response.content.replace("```json", "").replace("```", "").strip()
         sorted_tables = json.loads(clean)
+
+        print("clean:",clean)
+        print("sorted_tables:",sorted_tables)
         
         # In current system, QueryBuilder expects schema_data["tables"]
         state["schema_data"] = {"tables": sorted_tables}

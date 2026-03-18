@@ -18,6 +18,9 @@ async def schema_optimizer_agent(state: AgentState) -> AgentState:
     planner_output = state.get("architecture_plan", {}) # system_domain, modules, entities
     base_schema = state.get("schema_plan", {}) # Tables, columns, relations from SchemaDesignerAgent
     
+    existing_collections = state.get("existing_collections", [])
+    existing_schema_map = state.get("existing_schema_map", state.get("existing_schema", {}))
+    
     system_prompt = """
     You are a world-class Senior Database Architect and Schema Auditor. Ihr job is to review, refine, and optimize a database design before it is presented to a client.
 
@@ -26,20 +29,42 @@ async def schema_optimizer_agent(state: AgentState) -> AgentState:
     2. Requirement Analysis (domain constraints).
     3. Architecture Plan (modules and logical entities).
     4. Base Schema Design (tables, columns, and relations).
+    5. Existing Collections (tables already in the database).
+    6. Existing Schema Map (details of existing tables).
 
     --------------------------------------------------
     YOUR OBJECTIVE
     --------------------------------------------------
     Your goal is to transform a "base" schema into a "production-grade" optimized schema. 
-    You must ensure the design is scalable, consistent with the architecture modules, and enriched with realistic domain attributes.
+    You must ensure the design is scalable, consistent with the architecture modules, enriched with realistic domain attributes, AND strictly integrated with existing collections.
+
+    --------------------------------------------------
+    CRITICAL SCHEMA AWARENESS RULES (MUST FOLLOW)
+    --------------------------------------------------
+    1. NEVER RECREATE EXISTING TABLES (SEMANTIC INTELLIGENCE)
+       - Prevent NOT ONLY exact name duplication, BUT ALSO same PURPOSE / same SCHEMA duplication.
+       - If a table already exists in `existing_collections`, DO NOT include it again in the optimized schema.
+       - If a proposed table shares a similar PURPOSE or has 60-70% schema overlap with an existing table (e.g., 'attendance' vs 'employee_attendance', or 'salary' vs 'employee_salary'):
+         ❌ DO NOT create the new table.
+         ✅ MERGE redundant proposed tables, and ensure ONE source of truth by relying on the existing system table.
+         ✅ If the proposed table is fundamentally the same concept, REMOVE it from `optimized_schema`.
+
+    2. RELATION INTELLIGENCE
+       - When optimizing relations connecting to existing entities, refer to `existing_schema_map`.
+       - NEVER guess target tables. Ensure relations correctly target existing tables using exact names/slugs from `existing_schema_map`.
+
+    3. OPTIMIZATION SCOPE
+       - Detect duplicate-purpose tables and remove them. Ensure there is only ONE source of truth per concept.
+       - Improve column structure, naming consistency, relations between NEW tables, and performance-related enhancements.
+       - NEVER modify existing system tables or rename existing collections.
 
     --------------------------------------------------
     CRITICAL OPTIMIZATION RULES
     --------------------------------------------------
 
     1. TABLE OPTIMIZATION:
-       - ALIGNMENT: Ensure every entity mentioned in the 'Architecture Plan' has a corresponding table in the schema.
-       - MISSING TABLES: If the domain logically requires a table (e.g., 'Departments' to group 'Employees') and the user has NOT set a strict table limit, ADD it.
+       - ALIGNMENT: Ensure every entity mentioned in the 'Architecture Plan' has a corresponding table in the schema (unless it already exists in the database).
+       - MISSING TABLES: If the domain logically requires a table and it does not exist, ADD it.
        - REDUNDANCY: Remove or merge tables that appear redundant or don't align with the planner's modules.
        - RESPECT LIMITS: If the user explicitly requested a specific number of tables or specific entities, YOU MUST NOT exceed that limit or remove those entities.
 
@@ -90,6 +115,12 @@ async def schema_optimizer_agent(state: AgentState) -> AgentState:
     
     BASE SCHEMA DESIGN:
     {json.dumps(base_schema, indent=2)}
+
+    EXISTING COLLECTIONS (DO NOT DUPLICATE THESE):
+    {json.dumps(existing_collections, indent=2)}
+    
+    EXISTING SCHEMA MAP (USE FOR RELATIONS):
+    {json.dumps(existing_schema_map, indent=2)}
     """
 
     messages = [
@@ -97,9 +128,7 @@ async def schema_optimizer_agent(state: AgentState) -> AgentState:
         HumanMessage(content=context_message)
     ]
 
-    response = await llm.ainvoke(messages)
-
-    print("Optimizer response:", response)
+    response = await llm.ainvoke(messages)  
     
     try:
         # Strip markdown code blocks if present

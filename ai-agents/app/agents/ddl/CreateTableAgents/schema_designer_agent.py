@@ -13,12 +13,13 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
     llm = ChatOpenAI(model="gpt-4o", temperature=0)
     plan = state.get("architecture_plan", {})
     existing_collections = state.get("existing_collections", [])
+    existing_schema_map = state.get("existing_schema_map", state.get("existing_schema", {}))
     history = state.get("conversation_history", [])
     previous_schema = state.get("schema_plan", {})
     user_modification = state.get("user_input", "") # For iterative modifications
     field_registry = state.get("field_registry")
 
-    print("field_registry",field_registry)
+    print("existing_schema_map",existing_schema_map)
     
     system_prompt = """
             You are a world-class Senior Database Architect and Data Modeler responsible for designing production-grade database schemas.
@@ -32,15 +33,21 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
             AUTHORITATIVE CONTEXT: EXISTING SCHEMA
             --------------------------------------------------
 
-            You will receive a list of "Existing Collections" (Schema Memory).
+            You will receive a list of "Existing Collections" and an "Existing Schema Map".
             
             This is the Authoritative Source of Truth for the current system state.
             
             Rules for handling Existing Schema:
-            1. DUPLICATE PREVENTION: NEVER generate a creation block for a table that already exists in 'existing_collections'.
-            2. RELATIONSHIP DISCOVERY: When designing relations, prioritize connecting new tables to existing ones if it makes architectural sense.
-            3. NAMING INTEGRITY: Use the exact 'singular_name' from 'existing_collections' when targeting them in relations.
-
+            1. EXACT DUPLICATE PREVENTION: NEVER design/generate a creation block for a table that already exists in 'existing_collections'.
+            2. SEMANTIC INTELLIGENCE & SCHEMA OVERLAP: Before designing ANY new schema, compare the proposed table with 'existing_schema_map'.
+               - Does 60-70% of the proposed columns match an existing table?
+               - Is the data PURPOSE fundamentally the same? (e.g., attendance vs employee_attendance)
+               - Is it the exact same entity concept under a different name? (e.g., employee_salary vs salary)
+               - If ANY of these are true: ❌ DO NOT CREATE the new table. ✅ USE the existing table via relation instead.
+               - If partial overlap (e.g., payment vs salary_payment), decide whether to extend the existing table or create a specialized one.
+            3. RELATIONSHIP DISCOVERY: When designing relations, prioritize connecting new tables to existing ones using the 'existing_schema_map'.
+            4. TARGET RESOLUTION: When mapping relations to existing collections, you MUST use the exact 'slug' or 'singular_name' found in the 'existing_schema_map'. Do NOT guess names!
+            5. If the planner output accidentally included an entity that is a semantic/purpose duplicate of an existing one, IGNORE IT and DO NOT create it. Just use relations to it.
 
             --------------------------------------------------
             CONTEXT AWARENESS
@@ -48,7 +55,8 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
 
             You will receive:
 
-            • Existing Collections (Schema Memory)
+            • Existing Collections
+            • Existing Schema Map
             • Conversation History
             • Current Architecture Plan
             • Previous Schema Plan
@@ -321,6 +329,7 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
     history_str = "\n".join([f"{m['role']}: {m['content']}" for m in history[-5:]])
     human_msg = (
         f"Existing Collections in Database:\n{json.dumps(existing_collections, indent=2)}\n\n"
+        f"Existing Schema Map:\n{json.dumps(existing_schema_map, indent=2)}\n\n"
         f"Conversation History:\n{history_str}\n\n"
         f"Architecture Plan: {json.dumps(plan, indent=2)}\n"
         f"Previous Schema: {json.dumps(previous_schema, indent=2)}\n"
@@ -338,7 +347,8 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
     try:
         schema = json.loads(response.content.strip().replace("```json", "").replace("```", ""))
         
-        # Absolute Authority: Validation + Hardened Fixup
+        # Absolute Authority: Validation + Hardened Fixup + Duplication Protection
+        filtered_tables = []
         for table in schema.get("tables", []):
             s = table.get("singular_name")
             p = table.get("plural_name")
@@ -351,10 +361,18 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
             if s == p:
                 print(f"[SchemaDesignerAgent] WARNING: Singular == Plural for '{s}'. Fixing...")
                 table["plural_name"] = f"{p}s" # Safety backup to prevent Strapi crash
+            
+            st = table.get("slug", s)
+            if s in existing_collections or st in existing_collections:
+                print(f"[SchemaDesignerAgent] ERROR/DROP: Prevented duplicate creation for existing entity '{s}'.")
+                continue
+                
+            filtered_tables.append(table)
 
+        schema["tables"] = filtered_tables
         state["schema_plan"] = schema
         state["schema_ready"] = True
-        print("Schemas:", schema)
+        print("Filtered Schemas:", schema)
 
     except Exception as e:
         print(f"[SchemaDesignerAgent] Error: {e}")

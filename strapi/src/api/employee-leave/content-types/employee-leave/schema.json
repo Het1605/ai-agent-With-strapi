@@ -15,8 +15,6 @@
         "sick",
         "vacation",
         "personal",
-        "maternity",
-        "paternity",
         "unpaid"
       ]
     },
@@ -28,6 +26,9 @@
       "type": "datetime",
       "required": true
     },
+    "reason": {
+      "type": "text"
+    },
     "status": {
       "type": "enumeration",
       "required": true,
@@ -36,11 +37,6 @@
         "approved",
         "rejected"
       ]
-    },
-    "reason": {
-      "type": "text",
-      "required": true,
-      "minLength": 10
     },
     "employee": {
       "type": "relation",
