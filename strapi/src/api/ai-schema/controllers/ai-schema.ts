@@ -51,6 +51,12 @@ const mapFieldToStrapiAttribute = (field: any) => {
             if (field.targetAttribute) config.targetAttribute = field.targetAttribute;
             break;
 
+        case 'component':
+        case 'dynamiczone':
+            // 🚨 These are currently NOT fully supported via the bridge because they require existing component UIDs
+            // Fallback to JSON if the AI accidentally sends one, or throw error early
+            throw new Error(`Type "${type}" is not supported via the dynamic bridge yet. Use "json" instead.`);
+
         default:
             // Other types (blocks, json, boolean, date) usually only use global options
             break;
@@ -338,6 +344,9 @@ export default {
                     const type = attr.type;
 
                     if (!type) continue;
+                    
+                    // 🚨 Skip types that the bridge cannot handle dynamically yet
+                    if (type === 'component' || type === 'dynamiczone') continue;
 
                     if (!fieldMap[type]) {
                         fieldMap[type] = new Set<string>();

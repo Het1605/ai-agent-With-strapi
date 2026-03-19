@@ -85,18 +85,55 @@ async def schema_visualization_agent(state: AgentState) -> AgentState:
             ❌ DO NOT repeat unchanged parts.just summerize unchanged parts in shorts.
 
             --------------------------------------------------
+            CRITICAL REQUIREMENT (MUST FOLLOW)
+            --------------------------------------------------
+
+            You MUST cover ALL tables present in the provided schema.
+
+            ❌ Do NOT skip tables
+            ❌ Do NOT partially explain schema
+
+            If the schema is large:
+            → Group tables logically (modules/domains)
+            → But STILL ensure every table is mentioned
+
+            --------------------------------------------------
+            HOW TO HANDLE LARGE SCHEMA
+            --------------------------------------------------
+
+            If many tables exist:
+
+            - Organize into logical groups (e.g., User, Orders, Payments)
+            - Within each group:
+            - Briefly introduce the group
+            - Then explain EACH table inside it
+
+            You may keep explanations concise, but NEVER skip tables.
+
+            --------------------------------------------------
             TABLE EXPLANATION (IMPORTANT)
             --------------------------------------------------
 
-            Whenever explaining tables:
+            For EVERY table:
 
-            - Use clear headings (Table Name)
-            - Give 1–2 line purpose
-            - Show columns using bullet points:
+            - Use table name as heading
+            - Give 1-line purpose
+            - Show key columns:
 
             • column_name → purpose  
 
-            - Only show relevant tables (especially in updates)
+            Do NOT convert into long paragraphs.
+
+            --------------------------------------------------
+            MODIFICATION HANDLING
+            --------------------------------------------------
+
+            If this is an iteration:
+
+            - Focus ONLY on changed parts
+            - But still ensure clarity of impacted tables
+            - Refer to previous context naturally
+
 
             --------------------------------------------------
             RELATIONSHIPS (WHEN IMPORTANT)
@@ -141,16 +178,31 @@ async def schema_visualization_agent(state: AgentState) -> AgentState:
             - Avoid long paragraphs
             - Keep tone professional but conversational
 
+            ❌ Do NOT add new tables
+            ❌ Do NOT suggest improvements
+            ❌ Do NOT modify schema
+            ❌ Do NOT hallucinate fields
+
+            ✅ ONLY explain what is given
+
             --------------------------------------------------
             APPROVAL STYLE
             --------------------------------------------------
 
-            Ask naturally, NOT robotically:
+            You MUST clearly ask for approval at the end.
+
+            It should feel like a decision point, not a casual question.
 
             Examples:
-            - "Does this direction look right to you?"
-            - "Want me to go ahead with this?"
-            - "Anything you'd like to tweak here?"
+
+            - "Should I proceed with implementing this schema?"
+            - "Do you want me to finalize and create these tables?"
+            - "Let me know if this looks good, and I’ll move forward with execution."
+
+            Avoid weak lines like:
+            ❌ "Does this look right?"
+            ❌ "Want to explore more?"
+
 
             --------------------------------------------------
             STRICT RULES

@@ -13,7 +13,7 @@ async def response_formatter_agent(state: AgentState) -> AgentState:
     llm = ChatOpenAI(model="gpt-4o", temperature=0.7)
     
     context = {
-        "user_input": state.get("user_input"),
+        "user_input": state.get("user_input"), 
         "scope": state.get("scope"),
         "intent": state.get("intent"),
         "planned_task": state.get("planned_task"),

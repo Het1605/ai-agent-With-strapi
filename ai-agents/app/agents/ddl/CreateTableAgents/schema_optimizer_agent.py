@@ -88,6 +88,7 @@ async def schema_optimizer_agent(state: AgentState) -> AgentState:
     4. OPTIMIZATION SCOPE
        - Detect duplicate-purpose tables and remove them. Ensure there is only ONE source of truth per concept.
        - Improve column structure, naming consistency, relations between NEW tables, and performance-related enhancements.
+       - 🚨 NEVER use 'component' or 'dynamiczone' types. These are not supported by the dynamic bridge. If the designer suggested them, change them to 'json' or separate tables.
        - NEVER modify existing system tables or rename existing collections.
 
     --------------------------------------------------
@@ -161,6 +162,8 @@ async def schema_optimizer_agent(state: AgentState) -> AgentState:
     ]
 
     response = await llm.ainvoke(messages)  
+
+    print("Optimizer response:",response.content)
     
     try:
         # Strip markdown code blocks if present

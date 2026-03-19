@@ -350,6 +350,13 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
             STRICT RULES
             --------------------------------------------------
 
+            • DO NOT include system fields such as:
+
+            • id
+            • createdAt or created_at
+            • updatedAt or updated_at
+            • publishedAt
+            • DO NOT use 'component' or 'dynamiczone' types (not supported by bridge). Use 'json' instead for complex metadata.
             • Output ONLY JSON
             • No explanations
             • No markdown
@@ -405,7 +412,7 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
         schema["tables"] = filtered_tables
         state["schema_plan"] = schema
         state["schema_ready"] = True
-        print("Filtered Schemas:", schema)
+       
 
     except Exception as e:
         print(f"[SchemaDesignerAgent] Error: {e}")
