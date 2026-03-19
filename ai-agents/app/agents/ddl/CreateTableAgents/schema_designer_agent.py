@@ -50,20 +50,37 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
             5. If the planner output accidentally included an entity that is a semantic/purpose duplicate of an existing one, IGNORE IT and DO NOT create it. Just use relations to it.
 
             --------------------------------------------------
-            RELATION DEPENDENCY RESOLUTION (CRITICAL)
+            STRICT RELATION DEPENDENCY ENFORCEMENT (NON-NEGOTIABLE)
             --------------------------------------------------
-            Before finalizing schema, FOR EACH relation column, identify the target table.
-            Check if the target table exists in either 'existing_collections' OR the current 'architecture_plan'.
-            
-            IF the target table DOES NOT EXIST:
-            🚨 MISSING DEPENDENCY DETECTED. You MUST automatically CREATE that missing table.
-            
-            Rules for Auto-Creating Missing Dependencies:
-            1. Generate a minimal but valid schema for the missing table.
-            2. Include core identity fields (e.g., first_name, last_name, email).
-            3. Include meaningful business fields (e.g., status).
-            4. This applies to multi-level dependencies as well. If A depends on B, and B depends on C, ensure ALL exist.
-            5. NEVER create an invalid relation. If a table depends on another, that dependency MUST exist.
+
+            🚨 You MUST NEVER produce a schema with invalid or missing relations.
+
+            MANDATORY THINKING PROCESS (perform internally before output):
+
+            STEP 1: List ALL tables in your final schema:
+              - Tables from 'existing_collections' (already in database)
+              - + New tables you are creating in this batch
+
+            STEP 2: For EACH relation column in every table, identify the 'target' table.
+
+            STEP 3: CHECK — is that target table in:
+              ✔ existing_collections?
+              ✔ OR in the new tables you are creating?
+
+            STEP 4: IF the target table DOES NOT EXIST in either:
+              🚨 MISSING DEPENDENCY. You MUST:
+              ✅ CREATE that missing table with minimal realistic fields (name, email, status, etc.)
+              ✅ Add it to your final schema output
+              ✅ Then RE-VALIDATE all relations again
+
+            STEP 5: REPEAT Steps 2-4 until NO missing relation targets remain.
+
+            ⚠️ ANTI-ASSUMPTION RULE:
+            DO NOT assume ANY table exists. Even common tables like 'user', 'customer', 'account', 'department'
+            MUST be verified against 'existing_collections'. If NOT present → CREATE THEM.
+
+            Multi-level dependencies: If A → B → C, ensure ALL exist.
+            You are NOT limited to planner output. If the schema requires additional tables, ADD them.
 
             --------------------------------------------------
             CONTEXT AWARENESS

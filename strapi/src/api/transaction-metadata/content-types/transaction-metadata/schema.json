@@ -1,0 +1,85 @@
+{
+  "kind": "collectionType",
+  "collectionName": "transaction_metadatas",
+  "info": {
+    "singularName": "transaction-metadata",
+    "pluralName": "transaction-metadatas",
+    "displayName": "Transaction Metadata"
+  },
+  "options": {},
+  "pluginOptions": {},
+  "attributes": {
+    "metadata_key": {
+      "type": "string",
+      "required": true
+    },
+    "metadata_value": {
+      "type": "json",
+      "required": true
+    },
+    "is_sensitive": {
+      "type": "boolean",
+      "default": false
+    },
+    "createdAt": {
+      "type": "datetime"
+    },
+    "updatedAt": {
+      "type": "datetime"
+    },
+    "publishedAt": {
+      "type": "datetime",
+      "configurable": false,
+      "writable": true,
+      "visible": true
+    },
+    "createdBy": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "admin::user",
+      "configurable": false,
+      "writable": false,
+      "visible": false,
+      "useJoinTable": false,
+      "private": true
+    },
+    "updatedBy": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "admin::user",
+      "configurable": false,
+      "writable": false,
+      "visible": false,
+      "useJoinTable": false,
+      "private": true
+    },
+    "locale": {
+      "writable": true,
+      "private": true,
+      "configurable": false,
+      "visible": false,
+      "type": "string"
+    },
+    "localizations": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::transaction-metadata.transaction-metadata",
+      "writable": false,
+      "private": true,
+      "configurable": false,
+      "visible": false,
+      "unstable_virtual": true,
+      "joinColumn": {
+        "name": "document_id",
+        "referencedColumn": "document_id",
+        "referencedTable": "transaction_metadatas"
+      }
+    },
+    "transaction_metadata_reference": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::transaction.transaction",
+      "required": false
+    }
+  }
+}

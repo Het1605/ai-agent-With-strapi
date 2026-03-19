@@ -53,11 +53,37 @@ async def schema_optimizer_agent(state: AgentState) -> AgentState:
        - When optimizing relations connecting to existing entities, refer to `existing_schema_map`.
        - NEVER guess target tables. Ensure relations correctly target existing tables using exact names/slugs from `existing_schema_map`.
 
-    3. RELATION DEPENDENCY RESOLUTION (STRICT)
-       - Validate ALL relations across the proposed schema.
-       - Detect any missing target tables (i.e. target table does NOT exist in 'existing_collections' AND is NOT in the proposed schema).
-       - If a missing target is detected, you MUST automatically INCLUDE/CREATE a minimal but valid table for that target entity.
-       - Ensure NO broken references and NO dangling relations exist in the final optimized schema.
+    3. STRICT RELATION DEPENDENCY ENFORCEMENT (NON-NEGOTIABLE)
+       🚨 You MUST NEVER output a schema with broken or missing relations.
+
+       MANDATORY VALIDATION PROCESS (perform internally before output):
+
+       STEP 1: Build a COMPLETE list of all available tables:
+         - All tables in 'existing_collections' (already in database)
+         - + All tables in the proposed 'optimized_schema'
+
+       STEP 2: For EACH relation column in the optimized schema, identify the 'target' table.
+
+       STEP 3: CHECK — does that target exist in the complete list from STEP 1?
+         ✔ YES → relation is valid, continue.
+         ❌ NO → MISSING DEPENDENCY DETECTED.
+
+       STEP 4: For EVERY missing dependency:
+         ✅ AUTO-CREATE a minimal but valid table for the missing entity.
+         ✅ Include realistic fields: name, email, status (as appropriate to the domain).
+         ✅ Add it to 'optimized_schema'.
+
+       STEP 5: REPEAT Steps 2-4 until ZERO missing relation targets remain.
+
+       ⚠️ ANTI-ASSUMPTION RULE:
+       DO NOT assume tables like 'user', 'customer', 'account' exist.
+       They MUST be verified against 'existing_collections'. If NOT present → CREATE THEM.
+
+       FINAL VALIDATION CHECKLIST (mandatory before output):
+       ✔ All relation targets exist (in existing_collections OR optimized_schema)
+       ✔ No broken references
+       ✔ No dangling relations
+       ✔ Schema is logically complete
 
     4. OPTIMIZATION SCOPE
        - Detect duplicate-purpose tables and remove them. Ensure there is only ONE source of truth per concept.

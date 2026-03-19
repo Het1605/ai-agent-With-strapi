@@ -1,0 +1,48 @@
+{
+  "kind": "collectionType",
+  "collectionName": "accounts",
+  "info": {
+    "singularName": "account",
+    "pluralName": "accounts",
+    "displayName": "Account"
+  },
+  "options": {},
+  "attributes": {
+    "user": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::user.user"
+    },
+    "account_number": {
+      "type": "string",
+      "required": true,
+      "unique": true
+    },
+    "account_type": {
+      "type": "enumeration",
+      "required": true,
+      "enum": [
+        "savings",
+        "checking",
+        "credit"
+      ]
+    },
+    "balance": {
+      "type": "decimal",
+      "required": true
+    },
+    "currency": {
+      "type": "string",
+      "required": true
+    },
+    "status": {
+      "type": "enumeration",
+      "required": true,
+      "enum": [
+        "active",
+        "inactive",
+        "closed"
+      ]
+    }
+  }
+}

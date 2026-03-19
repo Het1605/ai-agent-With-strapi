@@ -1,0 +1,90 @@
+{
+  "kind": "collectionType",
+  "collectionName": "user_transactions",
+  "info": {
+    "singularName": "user-transaction",
+    "pluralName": "user-transactions",
+    "displayName": "User Transaction"
+  },
+  "options": {},
+  "pluginOptions": {},
+  "attributes": {
+    "user": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::user.user"
+    },
+    "role": {
+      "type": "enumeration",
+      "required": true,
+      "enum": [
+        "initiator",
+        "approver",
+        "viewer"
+      ]
+    },
+    "notes": {
+      "type": "text"
+    },
+    "createdAt": {
+      "type": "datetime"
+    },
+    "updatedAt": {
+      "type": "datetime"
+    },
+    "publishedAt": {
+      "type": "datetime",
+      "configurable": false,
+      "writable": true,
+      "visible": true
+    },
+    "createdBy": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "admin::user",
+      "configurable": false,
+      "writable": false,
+      "visible": false,
+      "useJoinTable": false,
+      "private": true
+    },
+    "updatedBy": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "admin::user",
+      "configurable": false,
+      "writable": false,
+      "visible": false,
+      "useJoinTable": false,
+      "private": true
+    },
+    "locale": {
+      "writable": true,
+      "private": true,
+      "configurable": false,
+      "visible": false,
+      "type": "string"
+    },
+    "localizations": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::user-transaction.user-transaction",
+      "writable": false,
+      "private": true,
+      "configurable": false,
+      "visible": false,
+      "unstable_virtual": true,
+      "joinColumn": {
+        "name": "document_id",
+        "referencedColumn": "document_id",
+        "referencedTable": "user_transactions"
+      }
+    },
+    "user_transaction_reference": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::transaction.transaction",
+      "required": false
+    }
+  }
+}

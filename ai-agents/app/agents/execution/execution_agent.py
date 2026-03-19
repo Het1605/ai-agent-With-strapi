@@ -13,7 +13,7 @@ async def execution_agent(state: AgentState) -> AgentState:
     """
     print("\n----- ENTERING ExecutionAgent (Sequential) -----")
 
-    payloads = state.get("execution_payloads", [])
+    payloads = state.get("execution_payloads")
 
     print("payload :",payloads)
 

@@ -5,140 +5,56 @@ import json
 
 async def schema_execution_planner_agent(state: AgentState) -> AgentState:
     """
-    SchemaExecutionPlannerAgent: Production-grade execution order planner.
-    Performs dependency analysis, duplicate filtering, and topological sorting.
+    SchemaExecutionPlannerAgent: Pure Dependency-Based Ordering Engine.
+    Its ONLY job is to determine the correct execution order of the optimized schema.
+    It does NOT filter, skip, or modify the tables.
     """
-    print("\n----- ENTERING SchemaExecutionPlannerAgent (AI Planning) -----")
-    
-    llm = ChatOpenAI(model="gpt-4o", temperature=0)
-    schema_plan = state.get("schema_plan")
-    existing_collections = state.get("existing_collections", [])
-    conversation_history = state.get("conversation_history", [])
+    print("\n----- ENTERING SchemaExecutionPlannerAgent (Pure Ordering Engine) -----")
 
-    print(f"Existing collections for planning: {len(existing_collections)}")
+    schema_plan = state.get("schema_plan")
     
     if not schema_plan or not schema_plan.get("tables"):
         print("[SchemaExecutionPlannerAgent] No tables found in plan.")
         return state
 
-    tables = schema_plan.get("tables", [])
+    llm = ChatOpenAI(model="gpt-4o", temperature=0)
 
-    # ── FAST PATH: Single table, no sorting needed ──
-    if len(tables) == 1:
-        slug = tables[0].get("slug", "")
-        if slug in existing_collections:
-            print(f"[SchemaExecutionPlannerAgent] Single table '{slug}' already exists. Skipping.")
-            state["schema_data"] = {"tables": []}
-            state["schema_ready"] = True
-            return state
-        
-        print(f"[SchemaExecutionPlannerAgent] Single table '{slug}' — no sorting needed.")
-        state["schema_data"] = {"tables": tables}
-        state["schema_ready"] = True
-        return state
+    system_prompt = """
+                    You are a Senior Backend Deployment Engineer specialized in Database Execution Ordering.
 
-    # ── PRE-FILTER: Remove tables that already exist ──
-    filtered_tables = []
-    for t in tables:
-        slug = t.get("slug", "")
-        singular = t.get("singular_name", "")
-        table_name = t.get("table_name", "")
-        if slug in existing_collections or singular in existing_collections or table_name in existing_collections:
-            print(f"[SchemaExecutionPlannerAgent] SKIP existing: '{slug}'")
-        else:
-            filtered_tables.append(t)
-
-    if not filtered_tables:
-        print("[SchemaExecutionPlannerAgent] All tables already exist. Nothing to create.")
-        state["schema_data"] = {"tables": []}
-        state["schema_ready"] = True
-        return state
-
-    # ── CHECK: Any relations at all? ──
-    has_relations = False
-    for t in filtered_tables:
-        for col in t.get("columns", []):
-            if col.get("type") == "relation":
-                has_relations = True
-                break
-        if has_relations:
-            break
-
-    if not has_relations:
-        print("[SchemaExecutionPlannerAgent] No relations found — using original order.")
-        state["schema_data"] = {"tables": filtered_tables}
-        state["schema_ready"] = True
-        print(f"[SchemaExecutionPlannerAgent] Created execution plan for {len(filtered_tables)} tables.")
-        for i, t in enumerate(filtered_tables, 1):
-            print(f" {i}. {t.get('table_name', 'unknown')}")
-        return state
-
-    # ── LLM-BASED TOPOLOGICAL SORTING ──
-    # Build recent history context (last 5 messages for iteration awareness)
-    recent_history = conversation_history[-5:] if conversation_history else []
-    history_str = json.dumps(recent_history, indent=2) if recent_history else "[]"
-
-    system_prompt = f"""
-    
-                    You are a Senior Backend Deployment Engineer.
-
-                    Your ONLY job: take the input tables and return them in the CORRECT CREATION ORDER.
+                    Your ONLY responsibility is to determine the CORRECT EXECUTION ORDER of the tables provided.
 
                     --------------------------------------------------
-                    AUTHORITATIVE CONTEXT: EXISTING DATABASE
+                    🎯 YOUR CORE TASK
                     --------------------------------------------------
-                    The following tables ALREADY EXIST in the database (DO NOT include these in output):
-                    {json.dumps(existing_collections)}
-
-                    --------------------------------------------------
-                    CONVERSATION CONTEXT
-                    --------------------------------------------------
-                    Recent conversation (for iteration awareness):
-                    {history_str}
+                    You MUST reorder the input tables so that parent tables (those that are targets of relations) appear BEFORE the dependent tables (those that contain the relation fields).
 
                     --------------------------------------------------
-                    YOUR RESPONSIBILITIES
+                    🚨 CRITICAL RULES
                     --------------------------------------------------
-
-                    1. DEPENDENCY ANALYSIS
-                    - Analyze ALL 'relation' columns in each table.
-                    - Identify which table each relation's 'target' points to.
-                    - Map parent → child dependencies.
-
-                    2. DUPLICATE PREVENTION
-                    - Compare every table's 'slug', 'singular_name', and 'table_name' against the existing collections list.
-                    - If a table already exists → REMOVE it from output entirely.
-
-                    3. TOPOLOGICAL SORTING
-                    - Parent/target tables MUST appear BEFORE dependent tables.
-                    - If table A has a relation targeting table B, then B comes first (unless B already exists in database).
-                    - If a relation targets a table that already exists in the database, that dependency is satisfied — no ordering constraint needed.
-
-                    4. CIRCULAR DEPENDENCY RESOLUTION
-                    - If A depends on B and B depends on A, choose the safest order (the one with fewer dependencies goes first).
+                    1. KEEP ALL TABLES: You MUST include EVERY table from the input in your output. 
+                    2. NO FILTERING: Do NOT remove any tables, even if you think they exist or are duplicates. (That was handled by previous agents).
+                    3. NO MODIFICATION: Do NOT change any field, column, or metadata within the table objects.
+                    4. DEPENDENCY ANALYSIS:
+                    - Identify columns where 'type' == "relation".
+                    - Find the 'target' table for those relations.
+                    - If Table A depends on Table B, then Table B MUST come BEFORE Table A.
 
                     --------------------------------------------------
-                    STRICT RULES
+                    🔁 SPECIAL CASES
                     --------------------------------------------------
-
-                    ❌ Do NOT modify any table schema, columns, names, or metadata.
-                    ❌ Do NOT add new tables.
-                    ❌ Do NOT remove columns or fields.
-                    ❌ Do NOT include tables that exist in the EXISTING DATABASE list.
-
-                    ✅ ONLY reorder the tables.
-                    ✅ PRESERVE every field exactly: table_name, slug, singular_name, plural_name, display_name, columns.
+                    - If no relations exist → Return the tables in their original order.
+                    - If only one table exists → Return it as-is.
+                    - Circular Dependency → If A depends on B and B depends on A, choose a stable order (e.g., the one with fewer total dependencies first).
 
                     --------------------------------------------------
                     OUTPUT
                     --------------------------------------------------
-
-                    Return ONLY a valid JSON array of the filtered and sorted table objects.
-                    No markdown. No explanation. No code blocks. Just the raw JSON array.
-
+                    Return ONLY a valid JSON array of the tables in their correct execution order.
+                    No markdown. No code blocks. No explanations. Just the raw JSON array.
             """
 
-    human_msg = f"Tables to plan execution order for:\n{json.dumps(filtered_tables, indent=2)}"
+    human_msg = f"Tables to order by dependency:\n{json.dumps(schema_plan.get('tables'), indent=2)}"
 
     response = await llm.ainvoke([
         SystemMessage(content=system_prompt),
@@ -146,31 +62,24 @@ async def schema_execution_planner_agent(state: AgentState) -> AgentState:
     ])
 
     try:
-        clean = response.content.replace("```json", "").replace("```", "").strip()
-        sorted_tables = json.loads(clean)
+        # Strip potential markdown and parse
+        clean_content = response.content.replace("```json", "").replace("```", "").strip()
+        ordered_tables = json.loads(clean_content)
 
-        # Safety: validate each table still has required metadata
-        valid_tables = []
-        for t in sorted_tables:
-            if t.get("slug") and t.get("singular_name") and t.get("plural_name"):
-                # Final duplicate check
-                if t["slug"] not in existing_collections:
-                    valid_tables.append(t)
-                else:
-                    print(f"[SchemaExecutionPlannerAgent] POST-FILTER: Removed existing '{t['slug']}'")
-            else:
-                print(f"[SchemaExecutionPlannerAgent] WARNING: Table missing metadata, skipping: {t.get('table_name', 'unknown')}")
+        print("clean_content:",clean_content)
+        print("ordered_tables:",ordered_tables)
 
-        state["schema_data"] = {"tables": valid_tables}
+        # Update state with the ordered tables
+        state["schema_data"] = {"tables": ordered_tables}
         state["schema_ready"] = True
-        
-        print(f"[SchemaExecutionPlannerAgent] Created execution plan for {len(valid_tables)} tables.")
-        for i, t in enumerate(valid_tables, 1):
+
+        print(f"[SchemaExecutionPlannerAgent] Determined execution order for {len(ordered_tables)} tables.")
+        for i, t in enumerate(ordered_tables, 1):
             print(f" {i}. {t.get('table_name', 'unknown')}")
-            
+
     except Exception as e:
-        print(f"[SchemaExecutionPlannerAgent] Plan parsing error: {e}. Falling back to pre-filtered plan.")
-        state["schema_data"] = {"tables": filtered_tables}
+        print(f"[SchemaExecutionPlannerAgent] Order parsing error: {e}. Falling back to original plan order.")
+        state["schema_data"] = schema_plan
         state["schema_ready"] = True
 
     return state

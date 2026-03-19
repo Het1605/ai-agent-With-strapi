@@ -1,0 +1,45 @@
+{
+  "kind": "collectionType",
+  "collectionName": "transactions",
+  "info": {
+    "singularName": "transaction",
+    "pluralName": "transactions",
+    "displayName": "Transaction"
+  },
+  "options": {},
+  "attributes": {
+    "account": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::account.account"
+    },
+    "transaction_date": {
+      "type": "datetime",
+      "required": true
+    },
+    "amount": {
+      "type": "decimal",
+      "required": true
+    },
+    "description": {
+      "type": "text"
+    },
+    "status": {
+      "type": "enumeration",
+      "required": true,
+      "enum": [
+        "pending",
+        "completed",
+        "failed"
+      ]
+    },
+    "transaction_type": {
+      "type": "enumeration",
+      "required": true,
+      "enum": [
+        "debit",
+        "credit"
+      ]
+    }
+  }
+}
