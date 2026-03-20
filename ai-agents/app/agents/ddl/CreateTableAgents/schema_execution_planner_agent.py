@@ -66,7 +66,6 @@ async def schema_execution_planner_agent(state: AgentState) -> AgentState:
         clean_content = response.content.replace("```json", "").replace("```", "").strip()
         ordered_tables = json.loads(clean_content)
 
-        print("clean_content:",clean_content)
         print("ordered_tables:",ordered_tables)
 
         # Update state with the ordered tables

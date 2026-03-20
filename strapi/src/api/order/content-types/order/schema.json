@@ -1,0 +1,53 @@
+{
+  "kind": "collectionType",
+  "collectionName": "orders",
+  "info": {
+    "singularName": "order",
+    "pluralName": "orders",
+    "displayName": "Order"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "order_date": {
+      "type": "datetime",
+      "required": true
+    },
+    "order_status": {
+      "type": "enumeration",
+      "required": true,
+      "enum": [
+        "pending",
+        "processed",
+        "shipped",
+        "delivered",
+        "cancelled"
+      ]
+    },
+    "total_amount": {
+      "type": "decimal",
+      "required": true
+    },
+    "customer": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::customer.customer"
+    },
+    "payment": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::payment.payment"
+    },
+    "notes": {
+      "type": "text"
+    },
+    "shipping_address": {
+      "type": "text"
+    },
+    "billing_address": {
+      "type": "text"
+    }
+  }
+}

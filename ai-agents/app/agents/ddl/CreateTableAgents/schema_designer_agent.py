@@ -184,7 +184,7 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
 
             Your schema must represent a realistic production system.
 
-            Each table should normally contain **8–12 meaningful business fields** unless the entity is naturally small.
+            Each table should at least contain 8 to 12  meaningful and non meaningful business fields unless the entity is naturally small.you consider all the possible fields.
 
             Tables should contain:
 

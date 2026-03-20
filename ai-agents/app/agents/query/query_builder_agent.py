@@ -14,7 +14,6 @@ async def query_builder_agent(state: AgentState) -> AgentState:
     schema_data = state.get("schema_data", {})
     existing_collections = state.get("existing_collections", [])
     ddl_operation = state.get("ddl_operation", "DDL_CREATE_TABLE")
-    operation = state.get("operation", "")
     
     state["execution_payloads"] = []
 
@@ -197,6 +196,8 @@ async def query_builder_agent(state: AgentState) -> AgentState:
 
                 # Direct UID formatting using the authoritative SLUG (kebab-case)
                 col["target"] = f"api::{target_authoritative_id}.{target_authoritative_id}"
+
+                print("Uids:",col["target"])
             processed_columns.append(col)
 
         # Map to Strapi fields via LLM

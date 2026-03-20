@@ -119,8 +119,9 @@ export default {
                 uid: result.uid,
             });
         } catch (error: any) {
-            // @ts-ignore
-            strapi.log.error(error);
+            const loadedUids = Object.keys(strapi.contentTypes).filter(uid => uid.startsWith('api::'));
+            strapi.log.error(`[AI-Schema] Create Collection Failed: ${error.message}`);
+            strapi.log.error(`[AI-Schema] Loaded UIDs in current process: ${loadedUids.join(', ')}`);
 
             if (error.message === 'contentType.alreadyExists') {
                 return ctx.badRequest('Collection already exists');

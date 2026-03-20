@@ -1,0 +1,29 @@
+{
+  "kind": "collectionType",
+  "collectionName": "payments",
+  "info": {
+    "singularName": "payment",
+    "pluralName": "payments",
+    "displayName": "Payment"
+  },
+  "options": {},
+  "attributes": {
+    "amount": {
+      "type": "decimal",
+      "required": true
+    },
+    "payment_date": {
+      "type": "datetime",
+      "required": true
+    },
+    "method": {
+      "type": "enumeration",
+      "required": true,
+      "enum": [
+        "credit_card",
+        "cash",
+        "paypal"
+      ]
+    }
+  }
+}
