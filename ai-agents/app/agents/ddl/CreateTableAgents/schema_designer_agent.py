@@ -356,12 +356,13 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
             • createdAt or created_at
             • updatedAt or updated_at
             • publishedAt
+            • 🚨 RESERVED KEYWORD: "status" is NOT ALLOWED as a field name.
+              - Instead of "status", you MUST use "{table_name}_status" (e.g., "order_status", "employee_status").
             • DO NOT use 'component' or 'dynamiczone' types (not supported by bridge). Use 'json' instead for complex metadata.
             • Output ONLY JSON
             • No explanations
             • No markdown
             • No comments
-            • No additional text
 
             The schema must be complete, normalized, and production-ready.
         """

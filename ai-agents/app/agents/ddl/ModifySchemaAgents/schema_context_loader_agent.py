@@ -23,8 +23,6 @@ async def schema_context_loader_agent(state: AgentState) -> AgentState:
                 # Expose the raw collections array directly to the graph state
                 state["existing_collections"] = collections
 
-                print("collections:", collections)
-                
                 # 2. Extract schema structure for each collection
                 for col_name in collections:
                     schema_res = await client.get(f"{base_url}/content-type-schema/{col_name}")
@@ -39,7 +37,6 @@ async def schema_context_loader_agent(state: AgentState) -> AgentState:
         print(f"[SchemaContextLoader] Unexpected error fetching schema: {e}")
         
     state["existing_schema"] = existing_schema
-    print("existing_schema:",existing_schema)
     print(f"[SchemaContextLoader] Loaded schema for {len(existing_schema)} collections.")
     
     return state

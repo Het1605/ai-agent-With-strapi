@@ -74,6 +74,15 @@ async def schema_planner_agent(state: AgentState) -> AgentState:
        - Do not add relation columns to tables that do not exist.
 
     --------------------------------------------------
+    STRICT NAMING RULES (RESERVED KEYWORDS)
+    --------------------------------------------------
+    - THE FIELD NAME "status" is strictly PROHIBITED in Strapi.
+    - You must NEVER generate a field named exactly "status".
+    - Always use contextual naming: `{table_name_singular}_status` (e.g., "employee_status", "order_status").
+    - If the user explicitly asks to "add status", "remove status", or "update status", you MUST automatically map "status" to the contextual version.
+    - Map Example: "remove status from order" -> intent: delete_column, name: order_status.
+
+    --------------------------------------------------
     COLLECTION-LEVEL MODIFICATIONS (update_collection)
     --------------------------------------------------
     - Permitted ONLY for updating `displayName` or deleting a table entirely (high risk).

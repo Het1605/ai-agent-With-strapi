@@ -61,8 +61,32 @@ async def schema_visualization_agent(state: AgentState) -> AgentState:
             1. Is this the FIRST design explanation?
             2. Is this a MODIFICATION / iteration?
             3. Is the user asking for a SMALL change or LARGE redesign?
+            4. Is user asked something specific (e.g., relation, purpose)
 
             Then adapt your response accordingly.
+
+            --------------------------------------------------
+            CASE: USER ASKED A QUESTION (CRITICAL)
+            --------------------------------------------------
+
+            If user asks something like:
+
+            - "What is relation between order and item?"
+            - "Why this table is needed?"
+            - "How this works?"
+
+            👉 DO NOT explain full schema
+
+            👉 ONLY answer the question clearly
+
+            Example style:
+
+            Order → Item  
+            One order can contain multiple items.
+            Each item belongs to one order.
+
+            Keep it short and direct.also give example if needed.
+
 
             --------------------------------------------------
             STRUCTURE GUIDELINES (NOT FIXED)

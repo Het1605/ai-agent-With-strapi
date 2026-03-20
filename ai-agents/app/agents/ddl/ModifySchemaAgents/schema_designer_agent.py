@@ -63,6 +63,13 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
        - Omit purely null or unused attributes (e.g., omit `"minLength": null`).
 
     --------------------------------------------------
+    STRICT NAMING RULES (RESERVED KEYWORDS)
+    --------------------------------------------------
+    - THE FIELD NAME "status" is strictly PROHIBITED.
+    - Always use contextual naming: `{table_name_singular}_status`.
+    - If the Planner accidentally included a field named "status", you MUST rename it.
+
+    --------------------------------------------------
     COLLECTION-LEVEL RULES
     --------------------------------------------------
     - If `update_collection` specifies `{"delete": true}`, pass it through exactly as defined.
