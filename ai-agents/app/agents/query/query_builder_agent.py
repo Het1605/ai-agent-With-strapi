@@ -18,7 +18,6 @@ async def query_builder_agent(state: AgentState) -> AgentState:
     state["execution_payloads"] = []
 
     print(f"schema_data: {schema_data}")
-    print(f"existing_collections: ", existing_collections)
 
     # ── 1. DDL_MODIFY_SCHEMA path ────────────────────────────────────
     if ddl_operation == "DDL_MODIFY_SCHEMA":

@@ -90,6 +90,18 @@ async def schema_planner_agent(state: AgentState) -> AgentState:
     - To delete: `{"delete": true}` ONLY if explicitly requested (e.g., "drop table", "remove collection").
 
     --------------------------------------------------
+    STRICT RELATIONSHIP RULES (SINGLE-SIDE ONLY - HARD CONSTRAINT)
+    --------------------------------------------------
+    - 🚨 CRITICAL: Enforce STRICT SINGLE-SIDE relation definition.
+    - NO MUTUAL REFERENCES: If Table A references Table B, Table B **MUST NOT** reference Table A.
+    - PREFERRED DIRECTION (CHILD-SIDE): Always plan the relation on the CHILD side.
+      - In a One-to-Many / Many-to-One relationship: The "Many" side is the CHILD.
+      - Example (Faculty belongs to Department): Plan ONLY in Faculty as `manyToOne`.
+    - NO REVERSE RELATIONS: Do NOT plan a `oneToMany` on the parent side.
+    - ONE-TO-ONE RESOLUTION: Keep exactly one side of a one-to-one relationship.
+    - CONSISTENCY: Every relation must exist exactly once in the system and strictly in one direction.
+
+    --------------------------------------------------
     PLAN STRUCTURE (STRICT JSON)
     --------------------------------------------------
     Return ONLY valid JSON. Your response must be an object containing ONLY an "operations" array.

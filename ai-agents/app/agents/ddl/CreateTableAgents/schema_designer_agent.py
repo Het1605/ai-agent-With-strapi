@@ -198,27 +198,23 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
             Avoid extremely minimal schemas.
 
 
-            --------------------------------------------------
-            RELATIONSHIP DESIGN
-            --------------------------------------------------
-
-            Identify relationships between entities using architectural reasoning.
-
-            Examples:
-
-            Order → Customer
-            Customer → Addresses
-            Booking → Payment
-            Product → Category
-
-            Rules:
-
-            • Use manyToOne when many records belong to one entity
-            • Use oneToMany for parent-child relationships
-            • Use manyToMany with join tables when appropriate
-            • Use oneToOne only when truly exclusive
-
             Join tables must be created when modeling many-to-many relationships.
+
+
+            --------------------------------------------------
+            STRICT RELATIONSHIP RULES (SINGLE-SIDE ONLY - HARD CONSTRAINT)
+            --------------------------------------------------
+
+            🚨 CRITICAL: You MUST enforce STRICT SINGLE-SIDE relation definition.
+
+            1. NO MUTUAL REFERENCES: For any relationship between two tables, define it in ONLY ONE table. If A references B, B MUST NOT reference A.
+            2. PREFERRED DIRECTION (CHILD-SIDE): Always define the relation on the CHILD side of the relationship.
+               - In a One-to-Many / Many-to-One relationship: The "Many" side is the CHILD.
+               - Example (Faculty belongs to Department): Define ONLY in Faculty as `manyToOne`.
+               - Example (Order has many Items): Define ONLY in Item as `manyToOne`.
+            3. NO REVERSE RELATIONS: Do NOT generate the reverse relation (e.g., no `oneToMany` on the parent side).
+            4. ONE-TO-ONE RESOLUTION: Keep exactly one side of a one-to-one relationship.
+            5. CONSISTENCY: Every relation must exist exactly once in the entire schema and strictly in one direction.
 
 
             --------------------------------------------------

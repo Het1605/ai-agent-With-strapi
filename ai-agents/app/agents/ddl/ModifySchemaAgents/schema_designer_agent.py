@@ -73,8 +73,19 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
     COLLECTION-LEVEL RULES
     --------------------------------------------------
     - If `update_collection` specifies `{"delete": true}`, pass it through exactly as defined.
-    - If it specifies `{"displayName": "X"}`, pass it through exactly.
+    - If `update_collection` specifies `{"delete": true}`, pass it through exactly as defined.
+    - If it specifies `{"displayName": "New Name"}`, pass it through exactly.
     - Never infer collection deletions on your own.
+
+    --------------------------------------------------
+    STRICT RELATIONSHIP RULES (SINGLE-SIDE ONLY - HARD CONSTRAINT)
+    --------------------------------------------------
+    - 🚨 CRITICAL: Enforce STRICT SINGLE-SIDE relation definition.
+    - NO MUTUAL REFERENCES: If Table A references Table B, Table B **MUST NOT** reference Table A.
+    - PREFERRED DIRECTION (CHILD-SIDE): Always design relations on the CHILD side of the relationship.
+      - If adding a relation, place it in the table that "belongs to" the other (e.g., `manyToOne`).
+      - Every relationship MUST exist only once and in only ONE direction (CHILD to PARENT).
+    - ONE-TO-ONE RESOLUTION: Keep exactly one side of a one-to-one relationship.
 
     --------------------------------------------------
     OUTPUT FORMAT (STRICT JSON)

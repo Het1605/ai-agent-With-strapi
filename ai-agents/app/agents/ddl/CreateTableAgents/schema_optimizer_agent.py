@@ -116,6 +116,20 @@ async def schema_optimizer_agent(state: AgentState) -> AgentState:
     4. RELATIONSHIP OPTIMIZATION:
        - LOGICAL CONNECTIVITY: Add missing relations that are standard in the domain (e.g., linking Students to Departments).
        - SIMPLIFICATION: Avoid unnecessary join tables if a direct relation satisfies the domain requirements.
+       - 🚨 CIRCULAR DEPENDENCY PREVENTION & STRICT ENFORCEMENT (HARD CONSTRAINT):
+         - MANDATORY FINAL VALIDATION STEP: Before returning the schema, you MUST scan ALL tables and their relations to detect mutual references.
+         - NO TWO TABLES CAN REFERENCE EACH OTHER: If Table A references Table B, Table B **MUST NOT** reference Table A.
+         - RELATION PRUNING RULES:
+           - If `Table A -> manyToOne -> Table B` and `Table B -> oneToMany -> Table A` exist:
+             ✅ KEEP only the `manyToOne` in Table A.
+             ❌ REMOVE the `oneToMany` from Table B.
+           - If `Table A -> oneToOne -> Table B` and `Table B -> oneToOne -> Table A` exist:
+             ✅ KEEP exactly ONE of these based on business logic.
+             ❌ REMOVE the other.
+           - Every relationship MUST exist only once and in only ONE direction (CHILD to PARENT).
+         - EXPLICIT CORRECTION (Example):
+           - WRONG: Department has `faculty` (oneToMany) AND Faculty has `department` (manyToOne).
+           - RIGHT: ONLY Faculty has `department` (manyToOne). Department MUST have NO relation field to Faculty.
 
     5. SUGGESTIONS:
        - Provide forward-looking recommendations for future scalability or advanced features.
