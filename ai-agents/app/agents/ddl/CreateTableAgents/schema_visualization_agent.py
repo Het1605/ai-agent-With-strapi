@@ -158,24 +158,36 @@ async def schema_visualization_agent(state: AgentState) -> AgentState:
 
 
             --------------------------------------------------
-            RELATIONSHIPS (STRICT FORMAT)
+            RELATIONSHIPS (STRICT BRIDGE DETECTION)
             --------------------------------------------------
+            When explaining relationships, you MUST detect BRIDGE TABLES.
 
-            When explaining relationships:
+            BRIDGE TABLE DETECTION:
+            - A table is a BRIDGE if it has 2+ relation fields pointing to different main entities.
+            - Examples: Attendance (user+session), Enrollment (user+program).
 
-            Use this EXACT format:
+            EXPLANATION RULES:
+            1. IF table is NOT a bridge:
+               - Use standard format: `Entity A → Entity B One-to-One / One-to-Many / Many-to-One`.
+            2. IF table IS a bridge:
+               - DO NOT explain as technical FKs: (e.g., NOT `User → Attendance`).
+               - INSTEAD, explain as CONCEPTUAL relation:
+                 `Entity A ↔ Entity B Many-to-Many (via BridgeTable)`
+            3. COMBINE BRIDGES:
+               - If multiple bridge tables connect same entities, combine them: 
+                 `Entity A ↔ Entity B Many-to-Many (via BridgeA, BridgeB)`.
 
-            • Order → Item  
-            One-to-Many  
+            EXACT FORMAT (MANDATORY):
+            • Entity A ↔ Entity B  
+            Many-to-Many (via BridgeTable)
 
-            • User → Order  
-            One-to-Many  
+            • User → Profile  
+            One-to-One  
 
             Rules:
-            - ALWAYS use arrow →
-            - ALWAYS use:
-            One-to-One / One-to-Many / Many-to-One / Many-to-Many
-            - NO sentences unless user explicitly asks
+            - ALWAYS use ↔ for Many-to-Many via bridge.
+            - ALWAYS use → for standard relations.
+            - NO sentences unless user explicitly asks.
 
             --------------------------------------------------
             DYNAMIC RESPONSE BEHAVIOR

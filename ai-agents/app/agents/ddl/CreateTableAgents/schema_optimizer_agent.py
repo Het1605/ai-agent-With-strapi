@@ -113,23 +113,19 @@ async def schema_optimizer_agent(state: AgentState) -> AgentState:
        - REQUIRED/UNIQUE: Ensure primary identifiers (like 'email', 'code', 'slug') are marked as 'unique' and 'required'.
        - VALIDATION: Add validation rules like 'minLength', 'min', 'max' where appropriate (e.g., min length for passwords, range for age/price).
 
-    4. RELATIONSHIP OPTIMIZATION:
-       - LOGICAL CONNECTIVITY: Add missing relations that are standard in the domain (e.g., linking Students to Departments).
-       - SIMPLIFICATION: Avoid unnecessary join tables if a direct relation satisfies the domain requirements.
-       - 🚨 CIRCULAR DEPENDENCY PREVENTION & STRICT ENFORCEMENT (HARD CONSTRAINT):
-         - MANDATORY FINAL VALIDATION STEP: Before returning the schema, you MUST scan ALL tables and their relations to detect mutual references.
-         - NO TWO TABLES CAN REFERENCE EACH OTHER: If Table A references Table B, Table B **MUST NOT** reference Table A.
-         - RELATION PRUNING RULES:
-           - If `Table A -> manyToOne -> Table B` and `Table B -> oneToMany -> Table A` exist:
-             ✅ KEEP only the `manyToOne` in Table A.
-             ❌ REMOVE the `oneToMany` from Table B.
-           - If `Table A -> oneToOne -> Table B` and `Table B -> oneToOne -> Table A` exist:
-             ✅ KEEP exactly ONE of these based on business logic.
-             ❌ REMOVE the other.
-           - Every relationship MUST exist only once and in only ONE direction (CHILD to PARENT).
-         - EXPLICIT CORRECTION (Example):
-           - WRONG: Department has `faculty` (oneToMany) AND Faculty has `department` (manyToOne).
-           - RIGHT: ONLY Faculty has `department` (manyToOne). Department MUST have NO relation field to Faculty.
+     4. RELATIONSHIP OPTIMIZATION:
+        - 🚨 BIDIRECTIONAL RELATION VALIDATION (MANDATORY):
+          - For every relationship, evaluate BOTH sides: (A → B) and (B → A).
+          - MANY-TO-MANY UPGRADE: If both sides can have multiple records, you MUST convert the relation to `manyToMany`.
+          - ONE-TO-ONE VALIDATION: If the relationship is exclusive on both sides, ensure it is `oneToOne`.
+          - 🚨 ANTI-BIAS CHECK: If the schema is dominated by `oneToMany`, re-examine the business logic. It likely needs more `manyToMany` or `oneToOne` relations.
+        
+        - 🚨 CIRCULAR DEPENDENCY PREVENTION & STRICT ENFORCEMENT (HARD CONSTRAINT):
+          - NO TWO TABLES CAN REFERENCE EACH OTHER.
+          - RELATION PRUNING:
+            - Keep only the `manyToOne` side for one-to-many.
+            - Keep exactly one side for `oneToOne` or `manyToMany`.
+            - Ensure every relationship exists only once in the entire schema.
 
     5. SUGGESTIONS:
        - Provide forward-looking recommendations for future scalability or advanced features.
@@ -178,8 +174,6 @@ async def schema_optimizer_agent(state: AgentState) -> AgentState:
     ]
 
     response = await llm.ainvoke(messages)  
-
-    print("Optimizer response:",response.content)
     
     try:
         # Strip markdown code blocks if present

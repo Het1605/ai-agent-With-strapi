@@ -7,7 +7,7 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
     """
     ModifySchemaDesignerAgent: Converts modification plans into precise,
     fully-structured database schema changes.
-    """
+    """ 
     print("\n----- ENTERING ModifySchemaDesignerAgent -----")
     
     llm = ChatOpenAI(model="gpt-4o", temperature=0)
@@ -20,11 +20,6 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
     previous_design = memory.get("latest_design", {})
     field_registry = state.get("field_registry", {})
     existing_schema = state.get("existing_schema", {})
-
-    print("schema_plan :",schema_plan)
-
-    print("previous_design:",previous_design)
-
     
     if not schema_plan or not schema_plan.get("operations"):
         print("[ModifySchemaDesignerAgent] No operations planned.")
@@ -78,14 +73,26 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
     - Never infer collection deletions on your own.
 
     --------------------------------------------------
-    STRICT RELATIONSHIP RULES (SINGLE-SIDE ONLY - HARD CONSTRAINT)
+    BIDIRECTIONAL RELATION REASONING (MANDATORY)
     --------------------------------------------------
-    - 🚨 CRITICAL: Enforce STRICT SINGLE-SIDE relation definition.
-    - NO MUTUAL REFERENCES: If Table A references Table B, Table B **MUST NOT** reference Table A.
-    - PREFERRED DIRECTION (CHILD-SIDE): Always design relations on the CHILD side of the relationship.
-      - If adding a relation, place it in the table that "belongs to" the other (e.g., `manyToOne`).
-      - Every relationship MUST exist only once and in only ONE direction (CHILD to PARENT).
-    - ONE-TO-ONE RESOLUTION: Keep exactly one side of a one-to-one relationship.
+    For EVERY relationship, evaluate BOTH sides:
+    1. Can Entity A have multiple Entity B?
+    2. Can Entity B have multiple Entity A?
+
+    RELATION DECISION MATRIX:
+    - YES / YES: 👉 Use manyToMany.
+    - YES / NO:  👉 Use oneToMany / manyToOne.
+    - NO / NO:   👉 Use oneToOne.
+
+    🚨 ANTI-BIAS RULE: If most relations are oneToMany, RE-EVALUATE.
+
+    --------------------------------------------------
+    STRICT RELATIONSHIP RULES (SINGLE-SIDE ONLY)
+    --------------------------------------------------
+    - CRITICAL: Enforce STRICT SINGLE-SIDE relation definition.
+    - NO MUTUAL REFERENCES: Table A references B -> Table B references NOTHING in Table A.
+    - MANY-TO-MANY RESOLUTION: pick only ONE table for the definition.
+    - ONE-TO-ONE RESOLUTION: Keep exactly one side.
 
     --------------------------------------------------
     OUTPUT FORMAT (STRICT JSON)
