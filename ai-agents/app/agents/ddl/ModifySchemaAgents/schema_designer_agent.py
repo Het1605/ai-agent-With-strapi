@@ -146,11 +146,6 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
         
         content = response.content.replace("```json", "").replace("```", "").strip()
         design = json.loads(content)
-
-        print("Designer Content:",content)
-
-        print("Designer Design:",design)
-        
         
         if "operations" not in design:
             design = {"operations": []}

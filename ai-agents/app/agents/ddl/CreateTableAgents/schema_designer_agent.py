@@ -214,7 +214,8 @@ async def schema_designer_agent(state: AgentState) -> AgentState:
                - Example (Order has many Items): Define ONLY in Item as `manyToOne`.
             3. NO REVERSE RELATIONS: Do NOT generate the reverse relation (e.g., no `oneToMany` on the parent side).
             4. ONE-TO-ONE RESOLUTION: Keep exactly one side of a one-to-one relationship.
-            5. CONSISTENCY: Every relation must exist exactly once in the entire schema and strictly in one direction.
+            5. MANY-TO-MANY RESOLUTION: keep exactly one side of a many-to-many relationship.
+            6. CONSISTENCY: Every relation must exist exactly once in the entire schema and strictly in one direction.
 
 
             --------------------------------------------------

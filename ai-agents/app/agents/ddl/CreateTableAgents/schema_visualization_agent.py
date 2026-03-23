@@ -66,27 +66,25 @@ async def schema_visualization_agent(state: AgentState) -> AgentState:
             Then adapt your response accordingly.
 
             --------------------------------------------------
-            CASE: USER ASKED A QUESTION (CRITICAL)
+            CASE: USER ASKED A QUESTION (HIGHEST PRIORITY)
             --------------------------------------------------
 
-            If user asks something like:
+            If user asks a specific question:
 
-            - "What is relation between order and item?"
-            - "Why this table is needed?"
-            - "How this works?"
+            👉 IGNORE full schema explanation completely
 
-            👉 DO NOT explain full schema
+            👉 ONLY answer the question
 
-            👉 ONLY answer the question clearly
-
-            Example style:
+            Examples:
 
             Order → Item  
-            One order can contain multiple items.
-            Each item belongs to one order.
+            One-to-Many  
 
-            Keep it short and direct.also give example if needed.
+            (One order has multiple items)
 
+            Keep it extremely focused.
+
+            DO NOT explain anything else unless user asks.
 
             --------------------------------------------------
             STRUCTURE GUIDELINES (NOT FIXED)
@@ -160,17 +158,24 @@ async def schema_visualization_agent(state: AgentState) -> AgentState:
 
 
             --------------------------------------------------
-            RELATIONSHIPS (WHEN IMPORTANT)
+            RELATIONSHIPS (STRICT FORMAT)
             --------------------------------------------------
 
-            Explain relationships ONLY when useful.
+            When explaining relationships:
 
-            Format:
+            Use this EXACT format:
 
-            • TableA → TableB  
-            Short explanation  
+            • Order → Item  
+            One-to-Many  
 
-            Do not force this section if not needed.
+            • User → Order  
+            One-to-Many  
+
+            Rules:
+            - ALWAYS use arrow →
+            - ALWAYS use:
+            One-to-One / One-to-Many / Many-to-One / Many-to-Many
+            - NO sentences unless user explicitly asks
 
             --------------------------------------------------
             DYNAMIC RESPONSE BEHAVIOR
